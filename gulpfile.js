@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 
 const gulp = require('gulp');
 const gutil = require('gulp-util');
@@ -18,22 +18,27 @@ const nodeExternals = require('webpack-node-externals');
 const appProject = gulpTs.createProject('tsconfig.json');
 const typeCheck = tslint.Linter.createProgram('tsconfig.json');
 
+
 gulp.task('lint', () => {
-	gulp.src('./src/**/*.ts')
+	var task1 = gulp.src('./src/**/*.ts')
 		.pipe(gulpTslint({
 			configuration: 'tslint.json',
 			formatter: 'prose',
 			program: typeCheck
 		}))
 		.pipe(gulpTslint.report());
-	gulp.src('./app/**/*.ts')
+	var task2 = gulp.src('./app/**/*.ts')
 		.pipe(gulpTslint({
 			configuration: 'tslint.json',
 			formatter: 'prose',
 			program: typeCheck
 		}))
 		.pipe(gulpTslint.report());
-})
+
+	return merge([task1, task2]);
+	
+});
+
 
 gulp.task('build', () => {
 	del.sync(['./build/**/*.*']);
@@ -49,8 +54,8 @@ gulp.task('build', () => {
 		.pipe(gulp.dest('build/app/'));
 	
 	const appCompile = gulp.src('./src/**/*.ts')
-		.pipe(sourcemaps.init())
-		.pipe(appProject());
+	      .pipe(sourcemaps.init())
+	      .pipe(appProject());
 
 	const externals = [];
 	if (!gutil.env.web) {
@@ -58,26 +63,26 @@ gulp.task('build', () => {
 	}
 	
 	const renderCompile = gulp.src('./app/index.ts')
-    	.pipe(gulpWebpack({
-			module: {
-				rules: [
-					{
-						loader: 'ts-loader',
-						exclude: [/node_modules/, /src/]
-					},
-				]
-			},
-			resolve: {
-				modules: ['node_modules', 'app'],
-				extensions: ['.tsx', '.ts', '.js']
-			},
-			output: {
-				filename: 'app.js'
-			},
-			externals: externals,
-			target: gutil.env.web ? 'web' : 'electron-renderer',
-			devtool: 'inline-source-map'
-		}, webpack))
+	      .pipe(gulpWebpack({
+		      module: {
+			      rules: [
+				      {
+					      loader: 'ts-loader',
+					      exclude: [/node_modules/, /src/]
+				      },
+			      ]
+		      },
+		      resolve: {
+			      modules: ['node_modules', 'app'],
+			      extensions: ['.tsx', '.ts', '.js']
+		      },
+		      output: {
+			      filename: 'app.js'
+		      },
+		      externals: externals,
+		      target: gutil.env.web ? 'web' : 'electron-renderer',
+		      devtool: 'inline-source-map'
+	      }, webpack));
 
 	return merge([
 		appCompile.js
