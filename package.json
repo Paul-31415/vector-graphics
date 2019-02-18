@@ -9,7 +9,6 @@
     "build:web": "gulp build --web",
     "lint": "npm run lint:gulp -s",
     "build": "npm run build:gulp -s",
-    "preweb": "npm run lint:gulp -s",
     "web": "npm run build:web",
     "start": "electron ."
   },

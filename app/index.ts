@@ -1,24 +1,40 @@
-import { Application, Container, Text } from 'pixi.js';
+import * as PIXI from "pixi.js";
 
-const app: Application = new Application(800, 600, { backgroundColor : 0x000000 });
-app.view.style.position = 'absolute';
-app.view.style.display = 'block';
-document.body.appendChild(app.view);
-
-const stage: Container = new Container();
-
-const message: Text = new Text(
-	'Hello Pixi!',
-	{ fontFamily: 'Arial', fontSize: 32, fill: 'white' }
+const app: PIXI.Application = new PIXI.Application(
+    {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        backgroundColor: 0x000000,
+        resolution: window.devicePixelRatio || 1,
+        autoResize: true
+    }
 );
 
-message.position.set(app.view.width / 2 - message.width / 2, app.view.height / 2 - message.height / 2);
-stage.addChild(message);
-app.renderer.render(stage);
+window.onresize = function(_event: UIEvent): void {
+    app.renderer.resize(window.innerWidth, window.innerHeight);
+};
 
-function gameLoop(): void {
-	requestAnimationFrame(gameLoop);
-	app.renderer.render(stage);
+
+
+document.body.appendChild(app.view);
+
+const message: PIXI.Text = new PIXI.Text(
+    'Hello Pixi!',
+    { fontFamily: 'Arial', fontSize: 32, fill: 'white' }
+);
+
+message.anchor.x = 0.5;
+message.anchor.y = 0.5;
+app.stage.addChild(message);
+
+
+
+
+
+function gameLoop(delta: number): void {
+    message.position.set(window.innerWidth / 2, window.innerHeight / 2);
+    message.rotation += delta / 100;
+    app.renderer.resize(window.innerWidth, window.innerHeight);
 }
 
-gameLoop();
+app.ticker.add(gameLoop);
