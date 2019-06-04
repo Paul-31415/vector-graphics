@@ -1,11 +1,11 @@
 import { Vector, Point } from "./vectors";
+import "math";
 
 
 
 function arrMatrixMulArr(m: Array<Array<number>>, v: Array<number>): Array<number> {
     var res: number[] = [];
     for (var i in m) {
-        res[i] = 0;
         for (var j in m[i]) {
             if (v[j] != null) {
                 res[i] += m[i][j] * v[j]
@@ -80,16 +80,16 @@ function copy(m: Array<Array<number>>): Array<Array<number>> {
 function inverse(m: Array<Array<number>>): Array<Array<number>> {
     //output undefined for noninvertible transformations
     var workid = identity(m);
-    var workmx: Array<Array<number>> = copy(m);
+    var workmx = copy(m);
     const cols = workid;
 
 
     for (var col in cols) {
         var maxRow = col;
         for (var row in cols) {
-            //if (Math.abs(workmx[row][col]) > Math.abs(workmx[maxRow][col])) {// fix error plox
-            //    maxRow = row;
-            //}
+            if (Math.abs(workmx[row][col]) > Math.abs(workmx[maxRow][col])) {
+                maxRow = row;
+            }
         }
         //swap row with maxRow
         swap(workmx, col, maxRow);
@@ -114,18 +114,16 @@ function inverse(m: Array<Array<number>>): Array<Array<number>> {
 }
 
 
-interface Transform<A, B> {
-    apply(a: A): B;
-}
 
 
-class PtTransform implements Transform<Point, Point>{
+class PtTransform {
 
-    constructor(public coordMatrix: Array<Array<number>> = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) {
+    constructor(public coordMatrix: Array<Array<number>>) {
+        this.coordMatrix = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
     }
     apply(p: Point): Point {
         const r = arrMatrixMulArr(this.coordMatrix, [p.x, p.y, p.z, p.w]);
-        return new Point(r[0], r[1], r[2], r[3], p.s);
+        return new Point(...r);
     }
     compose(o: PtTransform): PtTransform {
         //put the colums
@@ -143,5 +141,5 @@ class PtTransform implements Transform<Point, Point>{
 
 
 export {
-    PtTransform, Transform
+    PtTransform
 }

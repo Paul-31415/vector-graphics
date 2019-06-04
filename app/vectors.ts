@@ -7,6 +7,10 @@ type Vector<T> = {
     add: (other: Vector<T>) => Vector<T>;
     scale: (s: number) => Vector<T>;
     zero: () => Vector<T>;
+    addEq: (other: Vector<T>) => Vector<T>;
+    addEqDiscardOther: (other: Vector<T>) => Vector<T>;
+    scaleEq: (s: number) => Vector<T>;
+    zeroEq: () => Vector<T>;
     //basis: () => Array<string>;
 } & T;
 
@@ -19,7 +23,7 @@ function bound(x: number, l: 0, h: 255) {
 }
 
 class Color implements Vector<Color> {
-
+    static Gamma: number = 2;
     constructor(public r = 0, public g = 0, public b = 0, public a = 1) {
 
     }
@@ -35,13 +39,29 @@ class Color implements Vector<Color> {
     zero(): Vector<Color> {
         return new Color(0, 0, 0, 0);
     }
+    addEq(o: Vector<Color>): Vector<Color> {
+        this.r += o.r; this.g += o.g; this.b += o.b; this.a + o.a;
+        return this;
+    }
+    addEqDiscardOther(o: Vector<Color>): Vector<Color> {
+        this.r += o.r; this.g += o.g; this.b += o.b; this.a + o.a;
+        return this;
+    }
+    scaleEq(s: number): Vector<Color> {
+        this.r *= s; this.g *= s; this.b *= s; this.a *= s;
+        return this;
+    }
+    zeroEq(): Vector<Color> {
+        this.r = 0; this.g = 0; this.b = 0; this.a = 0;
+        return this;
+    }
     //basis(): Array<string> {
     //    return ["r", "g", "b", "a"];
     //}
     getRGB(): number {
-        return (bound(Math.floor(this.r * 255), 0, 255) << 16) |
-            (bound(Math.floor(this.g * 255), 0, 255) << 8) |
-            (bound(Math.floor(this.b * 255), 0, 255));
+        return (bound(Math.floor(Math.pow(this.r, Color.Gamma) * 255), 0, 255) << 16) |
+            (bound(Math.floor(Math.pow(this.g, Color.Gamma) * 255), 0, 255) << 8) |
+            (bound(Math.floor(Math.pow(this.b, Color.Gamma) * 255), 0, 255));
     }
     getA(): number {
         return this.a;
@@ -64,6 +84,22 @@ class Scalar /*extends Number*/ implements Vector<Scalar> {
     }
     zero(): Vector<Scalar> {
         return new Scalar(0);
+    }
+    addEq(o: Vector<Scalar>): Vector<Scalar> {
+        this.v += o.v;
+        return this;
+    }
+    addEqDiscardOther(o: Vector<Scalar>): Vector<Scalar> {
+        this.v += o.v;
+        return this;
+    }
+    scaleEq(s: number): Vector<Scalar> {
+        this.v *= s;
+        return this;
+    }
+    zeroEq(): Vector<Scalar> {
+        this.v = 0;
+        return this;
     }
 
 }
@@ -136,6 +172,38 @@ class Style implements Vector<Style> {
     zero(): Vector<Style> {
         return new Style({});
     }
+    addEq(o: Vector<Style>): Vector<Style> {
+        const ks = Object.keys(o.vars);
+        for (var i = 0; i < ks.length; i++) {
+            if (this.vars[ks[i]] != null) {
+                this.vars[ks[i]].addEq(o.vars[ks[i]]);
+            } else {
+                this.vars[ks[i]] = o.vars[ks[i]].copy();
+            }
+        }
+        return this;
+    }
+    addEqDiscardOther(o: Vector<Style>): Vector<Style> {
+        const ks = Object.keys(o.vars);
+        for (var i = 0; i < ks.length; i++) {
+            if (this.vars[ks[i]] != null) {
+                this.vars[ks[i]].addEq(o.vars[ks[i]]);
+            } else {
+                this.vars[ks[i]] = o.vars[ks[i]];
+            }
+        }
+        return this;
+    }
+    scaleEq(s: number): Vector<Style> {
+        for (var i in this.vars) {
+            this.vars[i].scaleEq(s);
+        }
+        return this;
+    }
+    zeroEq(): Vector<Style> {
+        this.vars = {};
+        return this;
+    }
     //basis(): string[] {
     //    var r: string[] = [];
     //    for (var i in this.vars) {
@@ -144,6 +212,48 @@ class Style implements Vector<Style> {
     //    return r;
     //}
 }
+
+function CenteredModulus(a: number, m: number) {
+    return (((a % m) + m + m / 2) % m) - m / 2;
+}
+
+
+class Angle2D implements Vector<Angle2D>{
+    constructor(public a: number) { }
+
+    copy(): Vector<Angle2D> {
+        return new Angle2D(this.a);
+    }
+    add(other: Vector<Angle2D>): Vector<Angle2D> {
+        return new Angle2D(this.a + other.a);
+    }
+    //return minimum angular result
+    scale(s: number): Vector<Angle2D> {
+
+        return new Angle2D(CenteredModulus(this.a * s, 360));
+    }
+    zero(): Vector<Angle2D> {
+        return new Angle2D(0);
+    }
+    addEq(other: Vector<Angle2D>): Vector<Angle2D> {
+        this.a += other.a;
+        return this;
+    }
+    addEqDiscardOther(other: Vector<Angle2D>): Vector<Angle2D> {
+        this.a += other.a;
+        return this;
+    }
+    //return minimum angular result
+    scaleEq(s: number): Vector<Angle2D> {
+        this.a = CenteredModulus(this.a * s, 360);
+        return this;
+    }
+    zeroEq(): Vector<Angle2D> {
+        this.a = 0;
+        return this;
+    }
+}
+
 
 class Point implements Vector<Point> {
 
@@ -187,8 +297,35 @@ class Point implements Vector<Point> {
     //    return ["x", "y", "z", "w", "s"];
     //}
 
+    addEq(other: Vector<Point>): Vector<Point> {
+        this.x = this.x * other.w + other.x * this.w;
+        this.y = this.y * other.w + other.y * this.w;
+        this.z = this.z * other.w + other.z * this.w;
+        this.w *= other.w;
+        this.s.addEq(other.s);
+        return this;
+    }
+    addEqDiscardOther(other: Vector<Point>): Vector<Point> {
+        this.x = this.x * other.w + other.x * this.w;
+        this.y = this.y * other.w + other.y * this.w;
+        this.z = this.z * other.w + other.z * this.w;
+        this.w *= other.w;
+        this.s.addEqDiscardOther(other.s);
+        return this;
+    }
+    scaleEq(c: number): Vector<Point> {
+        this.x *= c;
+        this.y *= c;
+        this.z *= c;
+        this.s.scaleEq(c);
+        return this;
+    }
+    zeroEq(): Vector<Point> {
+        this.x = 0; this.y = 0; this.z = 0; this.w = 1; this.s.zeroEq();
+        return this;
+    }
 }
 
 export {
-    Vector, Point, Style, Color, Scalar
+    Vector, Point, Style, Color, Scalar, Angle2D
 }

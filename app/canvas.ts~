@@ -1,0 +1,21 @@
+import * as PIXI from "pixi.js";
+import { Drawable } from "./drawable";
+import { PtTransform } from "./transform";
+
+class Canvas implements Drawable {
+    constructor(public contents: Array<Drawable>) {
+    }
+    draw(t: PtTransform): PIXI.Graphics {
+        return this.drawOn(t, new PIXI.Graphics());
+    }
+    drawOn(t: PtTransform, g: PIXI.Graphics): PIXI.Graphics {
+        this.contents.forEach((elem) => {
+            elem.drawOn(t, g);
+        });
+        return g
+    }
+
+}
+export {
+    Canvas
+}

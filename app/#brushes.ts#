@@ -1,0 +1,11 @@
+import * as PIXI from "pixi.js";
+import { Vector } from "./vectors";
+import { Bezier } from "./bezier";
+
+
+
+abstract class Brush<T extends Point> {
+    draw = (b: Bezier<Vector<T>>) => PIXI.Graphics;
+
+
+}

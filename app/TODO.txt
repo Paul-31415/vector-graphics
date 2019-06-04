@@ -1,0 +1,66 @@
+
+capitalize all class names properly
+
+implement saving
+make saving safe
+
+make transforms less annoying to deal with
+
+intensify cacheing
+- for fixed-length splines, cache length
+- for all complex drawables, cache the PIXI.Graphics 
+  • maybe make drawable subclass PIXI.Graphics
+- cache lighting calculations for a given scene (later)
+
+refactor brushes to use point generators
+- fixed-length spline would have a point generator included that would refine (and cache) the length estimate
+
+make a proper interface
+- make a button
+- make some sliders maybe
+- brush/color select
+  • instead of fg and bg colors, have a variable length ring structure that can be cycled by pressing x and ⇧x
+
+keep support for multi-touch
+add support for Tongseng / other methods of getting multitouch with a trackpad
+if possible, provide support for trackpad-multitouch without external dependencies
+
+make more tools
+- selector/editor
+- paintbrush
+
+make more splines
+- fixed-length spline has a number of free points that are moved by it to approach a desired length
+- physics spline has along-curve properties like mass and stiffness and stretchyness etc. and can time-evolve
+
+make more brushes
+- SphereBrush : looks like the surface of the volume of points within a sphere of size p.s.width at any Point p on the curve.
+  • importanceDistance - render distance within which all parts of the path render at least 1 pixel thick
+
+allow more general transformations
+- linear vs nonlinear distinction?
+- invertable vs not distinction?
+- Curve-basis transformation
+- Curve<Curve<Curve<Point>>> transformation
+
+Camera object?
+- visual transformations
+
+add lighting engine
+
+custom material shaders
+
+add sound engine
+
+add rendering engine
+
+add hyperspectral color support
+
+add sound wavetracing engine
+
+
+
+
+Done:
+
+make vector types support memory efficient operations (eg: scaleEq, addEq, zeroEq) √
