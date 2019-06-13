@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { Canvas } from "./canvas";
-import { Bezier } from "./bezier";
+import { Bezier, Curve, BSpline } from "./bezier";
 import { Point, Style, Color, Scalar, Vector, Angle2D } from "./vectors";
 import { Selected_br, SmartPen } from "./brush";
 import { Acceptor } from "./toolInterfaces";
@@ -99,13 +99,48 @@ class InteractionEventVector implements Vector<InteractionEventVector>{
 
 
 
-class BezTool extends Tool {
-    work: Map<PIXI.interaction.InteractionEvent, Bezier<Point>>;
-    //sprite: PIXI.Sprite;
-    constructor(public target: Acceptor<Bezier<Point>>, g: any) {
+
+
+interface Editable {
+    //testIntersection(ray: Curve<Point>): boolean;
+    testIntersection(s: PIXI.Sprite): boolean;
+    drawSelected: boolean;
+    selectColor: Color;
+
+    edit_function?: () => null
+
+
+
+
+
+}
+class EditTool extends Tool {
+    selected: Editable[];
+
+    constructor(public domain: Canvas, g: any) {
+        super(g);
+    }
+
+    select1(x: number, y: number): void {
+
+
+    }
+
+
+
+
+
+}
+
+abstract class DrawTool<T> extends Tool {
+    work: Map<PIXI.interaction.InteractionEvent, T>;
+    space: Map<PIXI.interaction.InteractionEvent, Point>;
+    spacing = 0;
+    constructor(g: any) {
         //this.sprite = new PIXI.Sprite();
         super(g);
-        this.work = new Map<PIXI.interaction.InteractionEvent, Bezier<Point>>();
+        this.work = new Map<PIXI.interaction.InteractionEvent, T>();
+        this.space = new Map<PIXI.interaction.InteractionEvent, Point>();
         this.interactive = true;
         this.on("mousedown", this.handlePress)
             .on("pointerdown", this.handlePress)
@@ -134,17 +169,21 @@ class BezTool extends Tool {
                 e.data.tiltY,
                 new Angle2D(e.data.twist))
         }));
-
     }
-
     handlePress(e: PIXI.interaction.InteractionEvent): void {
-        console.log(e);
+        //console.log(e);
         this.begin(e);
+        if (this.work.has(e)) {
+            this.space.set(e, this.makePoint(e));
+        }
     }
     handleMove(e: PIXI.interaction.InteractionEvent): void {
         if (this.work.has(e)) {
             //console.log(e);
-            this.cont(e);
+            if (this.space.get(e).scale(-1).addEqDiscardOther(this.makePoint(e)).norm2() > this.spacing * this.spacing) {
+                this.cont(e);
+                this.space.set(e, this.makePoint(e));
+            }
         }
     }
     handleRelease(e: PIXI.interaction.InteractionEvent): void {
@@ -152,9 +191,27 @@ class BezTool extends Tool {
             //console.log(e);
             //console.log(this.target);
             this.finish(e);
+            if (!this.work.has(e)) {
+                this.space.delete(e);
+            }
         }
     }
+    abstract begin(e: PIXI.interaction.InteractionEvent): void;
+    abstract cont(e: PIXI.interaction.InteractionEvent): void;
+    abstract finish(e: PIXI.interaction.InteractionEvent): void;
 
+
+}
+
+
+
+
+class BezTool extends DrawTool<Bezier<Point>> {
+    //sprite: PIXI.Sprite;
+    constructor(public target: Acceptor<Bezier<Point>>, g: any) {
+        //this.sprite = new PIXI.Sprite();
+        super(g);
+    }
     begin(e: PIXI.interaction.InteractionEvent): void {
         e.stopPropagation();
         const b = new Bezier<Point>([this.makePoint(e)])
@@ -171,9 +228,31 @@ class BezTool extends Tool {
 }
 
 
-
-
-
+class BSplineTool extends DrawTool<BSpline<Point>> {
+    constructor(public target: Acceptor<BSpline<Point>>, public degree: number, g: any) {
+        //this.sprite = new PIXI.Sprite();
+        super(g);
+    }
+    begin(e: PIXI.interaction.InteractionEvent): void {
+        e.stopPropagation();
+        const p = this.makePoint(e);
+        var a: Point[] = [];
+        for (var i = 0; i < this.degree + 1; i++) {
+            a[i] = p;
+        }
+        const b = new BSpline<Point>(a, this.degree, null)
+        console.log(b);
+        this.work.set(e, b);
+        this.target.accept(b);
+    }
+    cont(e: PIXI.interaction.InteractionEvent): void {
+        this.target.update((this.work.get(e) as BSpline<Point>).append(this.makePoint(e), null));
+    }
+    finish(e: PIXI.interaction.InteractionEvent): void {
+        this.target.complete((this.work.get(e) as BSpline<Point>));
+        this.work.delete(e);
+    }
+}
 
 
 
@@ -181,5 +260,7 @@ class BezTool extends Tool {
 
 
 export {
-    BezTool
+    Editable,
+    EditTool,
+    BezTool, BSplineTool
 }

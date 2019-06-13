@@ -1,0 +1,6 @@
+import { Vector, Point } from "./vectors";
+
+
+interface Fractal<T> extends Curve<T> {
+
+}

@@ -2,9 +2,9 @@ import * as PIXI from "pixi.js";
 import { Point, Style, Color, Scalar } from "./vectors";
 import { Bezier, Curve } from "./bezier";
 import { Acceptor } from "./toolInterfaces";
-import { Drawable } from "./drawable";
+import { Drawable, Graphic } from "./drawable";
 import { binarySearchNumber } from "../algorithms";
-import { PtTransform } from "./transform";
+import { PtTransform, Transform } from "./transform";
 
 
 
@@ -13,13 +13,13 @@ interface Brush {
     ellipse2d(g: PIXI.Graphics, x: number, y: number, w: number, h: number): PIXI.Graphics;
     poly2d(g: PIXI.Graphics, pts: Array<number>): PIXI.Graphics;
 
-    point(g: PIXI.Graphics, t: PtTransform, p1: Point): PIXI.Graphics;
-    line(g: PIXI.Graphics, t: PtTransform, p1: Point, p2: Point): PIXI.Graphics;
-    polyLine(g: PIXI.Graphics, t: PtTransform, pts: Array<Point>): PIXI.Graphics;
-    curve(g: PIXI.Graphics, t: PtTransform, c: Curve<Point>, res: number): PIXI.Graphics;
-    polyCurve(g: PIXI.Graphics, t: PtTransform, c: Array<Curve<Point>>, res: number): PIXI.Graphics;
-    surface(g: PIXI.Graphics, t: PtTransform, s: Curve<Curve<Point>>, res: number): PIXI.Graphics;
-    volume(g: PIXI.Graphics, t: PtTransform, s: Curve<Curve<Curve<Point>>>, res: number): PIXI.Graphics;
+    point(g: PIXI.Graphics, t: Transform<Point, Point>, p1: Point): PIXI.Graphics;
+    line(g: PIXI.Graphics, t: Transform<Point, Point>, p1: Point, p2: Point): PIXI.Graphics;
+    polyLine(g: PIXI.Graphics, t: Transform<Point, Point>, pts: Array<Point>): PIXI.Graphics;
+    curve(g: PIXI.Graphics, t: Transform<Point, Point>, c: Curve<Point>, res: number): PIXI.Graphics;
+    polyCurve(g: PIXI.Graphics, t: Transform<Point, Point>, c: Array<Curve<Point>>, res: number): PIXI.Graphics;
+    surface(g: PIXI.Graphics, t: Transform<Point, Point>, s: Curve<Curve<Point>>, res: number): PIXI.Graphics;
+    volume(g: PIXI.Graphics, t: Transform<Point, Point>, s: Curve<Curve<Curve<Point>>>, res: number): PIXI.Graphics;
 }
 
 
@@ -42,11 +42,11 @@ class Brusher implements Acceptor<Curve<Point>>{
 }
 class BrushedCurve implements Drawable {
     constructor(public c: Curve<Point>, public b: Brush, public res = 1) { }
-    drawOn(t: PtTransform, g: PIXI.Graphics): PIXI.Graphics {
+    drawOn(g: PIXI.Graphics, t: Transform<Point, Point> | null): PIXI.Graphics {
         return this.b.curve(g, t, this.c, this.res);
     }
-    draw(t: PtTransform): PIXI.Graphics {
-        return this.drawOn(t, new PIXI.Graphics());
+    draw(t: Transform<Point, Point> | null): Graphic {
+        return new Graphic(this, this.drawOn(new PIXI.Graphics(), t));
     }
 }
 
@@ -62,29 +62,27 @@ class Selected_br implements Brush {
     poly2d(g: PIXI.Graphics, pts: number[]): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
-    point(g: PIXI.Graphics, t: PtTransform, p1: Point): PIXI.Graphics {
+    point(g: PIXI.Graphics, t: Transform<Point, Point>, p1: Point): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
-    line(g: PIXI.Graphics, t: PtTransform, p1: Point, p2: Point): PIXI.Graphics {
+    line(g: PIXI.Graphics, t: Transform<Point, Point>, p1: Point, p2: Point): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
-    polyLine(g: PIXI.Graphics, t: PtTransform, pts: Point[]): PIXI.Graphics {
+    polyLine(g: PIXI.Graphics, t: Transform<Point, Point>, pts: Point[]): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
-    curve(g: PIXI.Graphics, t: PtTransform, c: Curve<Point>, res: number): PIXI.Graphics {
+    curve(g: PIXI.Graphics, t: Transform<Point, Point>, c: Curve<Point>, res: number): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
-    polyCurve(g: PIXI.Graphics, t: PtTransform, c: Curve<Point>[], res: number): PIXI.Graphics {
+    polyCurve(g: PIXI.Graphics, t: Transform<Point, Point>, c: Curve<Point>[], res: number): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
-    surface(g: PIXI.Graphics, t: PtTransform, s: Curve<Curve<Point>>, res: number): PIXI.Graphics {
+    surface(g: PIXI.Graphics, t: Transform<Point, Point>, s: Curve<Curve<Point>>, res: number): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
-    volume(g: PIXI.Graphics, t: PtTransform, s: Curve<Curve<Curve<Point>>>, res: number): PIXI.Graphics {
+    volume(g: PIXI.Graphics, t: Transform<Point, Point>, s: Curve<Curve<Curve<Point>>>, res: number): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
-
-
 
 
 }
@@ -109,10 +107,10 @@ class Pen implements Brush {
         g.endFill();
         return g;
     }
-    point(g: PIXI.Graphics, t: PtTransform, p1: Point): PIXI.Graphics {
+    point(g: PIXI.Graphics, t: Transform<Point, Point>, p1: Point): PIXI.Graphics {
         return this.line(g, t, p1, p1);
     }
-    line(g: PIXI.Graphics, t: PtTransform, P1: Point, P2: Point): PIXI.Graphics {
+    line(g: PIXI.Graphics, t: Transform<Point, Point>, P1: Point, P2: Point): PIXI.Graphics {
         var p1: Point;
         var p2: Point;
 
@@ -124,7 +122,7 @@ class Pen implements Brush {
         g.lineTo(p2.x, p2.y);
         return g;
     }
-    polyLine(g: PIXI.Graphics, t: PtTransform, pts: Point[]): PIXI.Graphics {
+    polyLine(g: PIXI.Graphics, t: Transform<Point, Point>, pts: Point[]): PIXI.Graphics {
         var poly: number[] = [];
         for (var i = 0; i < pts.length; i++) {
             const pt = t.apply(pts[i]).normalize();
@@ -143,7 +141,7 @@ class Pen implements Brush {
         }
     }
 
-    curve(g: PIXI.Graphics, trns: PtTransform, c: Curve<Point>, res: number): PIXI.Graphics {
+    curve(g: PIXI.Graphics, trns: Transform<Point, Point>, c: Curve<Point>, res: number): PIXI.Graphics {
         var oldPt = trns.apply(c.get(0)).normalize();
         g.moveTo(oldPt.x, oldPt.y);
         for (var t = 0; t < 1; t += 1 / res) {
@@ -156,14 +154,14 @@ class Pen implements Brush {
 
     }
 
-    polyCurve(g: PIXI.Graphics, t: PtTransform, c: Curve<Point>[], res: number): PIXI.Graphics {
+    polyCurve(g: PIXI.Graphics, t: Transform<Point, Point>, c: Curve<Point>[], res: number): PIXI.Graphics {
         var pts: Point[] = [];
         for (var ci in c) {
             this.appendCurveToPoly(pts, c[ci], res);
         }
         return this.polyLine(g, t, pts);
     }
-    surface(g: PIXI.Graphics, t: PtTransform, s: Curve<Curve<Point>>, res: number): PIXI.Graphics {
+    surface(g: PIXI.Graphics, t: Transform<Point, Point>, s: Curve<Curve<Point>>, res: number): PIXI.Graphics {
         var pts: Point[] = [];
         this.appendCurveToPoly(pts, s.get(0), res);
         var i = pts.length;
@@ -180,7 +178,7 @@ class Pen implements Brush {
         return this.polyLine(g, t, pts);
 
     }
-    volume(g: PIXI.Graphics, t: PtTransform, s: Curve<Curve<Curve<Point>>>, res: number): PIXI.Graphics {
+    volume(g: PIXI.Graphics, t: Transform<Point, Point>, s: Curve<Curve<Curve<Point>>>, res: number): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
 }
@@ -189,7 +187,7 @@ class SmartPen_bisect extends Pen {
     constructor(s = new Style({ Color: new Color(1, 1, 1) })) { super(s); }
 
 
-    curve(g: PIXI.Graphics, trns: PtTransform, c: Curve<Point>, res: number): PIXI.Graphics {
+    curve(g: PIXI.Graphics, trns: Transform<Point, Point>, c: Curve<Point>, res: number): PIXI.Graphics {
         throw new Error("Method not implemented.");
     }
 
@@ -253,7 +251,7 @@ class SmartPen_deriv extends Pen {
 
 
 
-    curve(g: PIXI.Graphics, trns: PtTransform, c: Curve<Point>, res: number): PIXI.Graphics {
+    curve(g: PIXI.Graphics, trns: Transform<Point, Point>, c: Curve<Point>, res: number): PIXI.Graphics {
 
         var oldPt = trns.apply(c.get(0)).normalize();
         const der = c.derivative();
@@ -318,6 +316,7 @@ export {
     Brusher,
     Brush, Selected_br,
     Pen, SmartPen_deriv, SmartPen_bisect, SmartPen,
+    BrushedCurve,
 
     CurveFlattener, SimpleFlattener, DerivFlattener
 }

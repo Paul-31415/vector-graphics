@@ -1,7 +1,8 @@
 import * as PIXI from "pixi.js";
-import { Drawable } from "./drawable";
-import { PtTransform } from "./transform";
+import { Drawable, Graphic } from "./drawable";
+import { PtTransform, Transform } from "./transform";
 import { Acceptor } from "./toolInterfaces";
+import { Point } from "./vectors";
 
 class Canvas extends PIXI.Sprite implements Drawable, Acceptor<Drawable> {
     accept(o: Drawable): boolean {
@@ -17,16 +18,16 @@ class Canvas extends PIXI.Sprite implements Drawable, Acceptor<Drawable> {
     constructor(public contents: Array<Drawable>) {
         super();
     }
-    draw(t: PtTransform): PIXI.Graphics {
-        return this.drawOn(t, new PIXI.Graphics());
+    draw(t: Transform<Point, Point> | null): Graphic {
+        return new Graphic(this, this.drawOn(new PIXI.Graphics(), t, ));
     }
     add(d: Drawable): Canvas {
         this.contents[this.contents.length] = d;
         return this
     }
-    drawOn(t: PtTransform, g: PIXI.Graphics): PIXI.Graphics {
+    drawOn(g: PIXI.Graphics, t: Transform<Point, Point> | null): PIXI.Graphics {
         this.contents.forEach((elem) => {
-            elem.drawOn(t, g);
+            elem.drawOn(g, t);
         });
         return g
     }

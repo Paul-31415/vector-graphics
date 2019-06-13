@@ -1,7 +1,8 @@
 import * as PIXI from "pixi.js";
-import { Drawable } from "./drawable";
+import { Drawable, Graphic } from "./drawable";
 import { Canvas } from "./canvas";
-import { PtTransform } from "./transform";
+import { PtTransform, Transform } from "./transform";
+import { Point } from "./vectors";
 
 
 
@@ -22,7 +23,7 @@ class UI {
 
 
 
-function button(d: Drawable, t: PtTransform): PIXI.Graphics {
+function button(d: Drawable, t: Transform<Point, Point> | null): Graphic {
     var b = d.draw(t);
     b.interactive = true;
     b.buttonMode = true;

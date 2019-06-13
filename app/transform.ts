@@ -1,5 +1,35 @@
 import { Vector, Point } from "./vectors";
 
+interface Transform<A, B> {
+    apply(a: A): B;
+    transform_linear: boolean;
+    transform_invertible: boolean;
+    inverse(): Transform<B, A>;
+    unapply(b: B): A;
+}
+class CompoundTransform<A, B, C> implements Transform<A, C>{
+    transform_linear: boolean;
+    transform_invertible: boolean;
+    constructor(public t1: Transform<A, B>, public t2: Transform<B, C>) {
+        this.transform_linear = t1.transform_linear && t2.transform_linear;
+        this.transform_invertible = t1.transform_invertible && t2.transform_invertible;
+    }
+    apply(a: A): C {
+        return this.t2.apply(this.t1.apply(a));
+    }
+    inverse(): Transform<C, A> {
+        return new CompoundTransform<C, B, A>(this.t2.inverse(), this.t1.inverse());
+    }
+    unapply(c: C): A {
+        return this.t1.unapply(this.t2.unapply(c));
+    }
+}
+
+
+
+
+
+
 
 
 function arrMatrixMulArr(m: Array<Array<number>>, v: Array<number>): Array<number> {
@@ -114,14 +144,18 @@ function inverse(m: Array<Array<number>>): Array<Array<number>> {
 }
 
 
-interface Transform<A, B> {
-    apply(a: A): B;
-}
+
 
 
 class PtTransform implements Transform<Point, Point>{
+    transform_linear = true;
+    transform_invertible: boolean;
+    unapply(b: Point): Point {
+        throw new Error("Method not implemented.");
+    }
 
     constructor(public coordMatrix: Array<Array<number>> = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) {
+        this.transform_invertible = false; //todo
     }
     apply(p: Point): Point {
         const r = arrMatrixMulArr(this.coordMatrix, [p.x, p.y, p.z, p.w]);
@@ -135,7 +169,7 @@ class PtTransform implements Transform<Point, Point>{
         }
         return new PtTransform(m);
     }
-    inverse(): PtTransform { //not always possible
+    inverse(): Transform<Point, Point> { //not always possible
         return new PtTransform(inverse(this.coordMatrix));
     }
 }

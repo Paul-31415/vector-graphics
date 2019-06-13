@@ -33,6 +33,9 @@ make more splines
 - fixed-length spline has a number of free points that are moved by it to approach a desired length
 - physics spline has along-curve properties like mass and stiffness and stretchyness etc. and can time-evolve
 
+non-curves/fractal-paths
+- eg for lightning, horisons, coastlines, etc
+
 make more brushes
 - SphereBrush : looks like the surface of the volume of points within a sphere of size p.s.width at any Point p on the curve.
   • importanceDistance - render distance within which all parts of the path render at least 1 pixel thick
@@ -46,17 +49,33 @@ allow more general transformations
 Camera object?
 - visual transformations
 
+
+make smearframes work
+
+
+
+macro/scripting language?
+
+plugin API
+
+game engine?
+- high level instructions for fast keyframing of rough animation of scenes through gameplay
+
 add lighting engine
 
 custom material shaders
 
 add sound engine
 
+auto lipsync
+
 add rendering engine
 
 add hyperspectral color support
 
 add sound wavetracing engine
+
+
 
 
 
