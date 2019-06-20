@@ -5,6 +5,7 @@ import { Acceptor } from "./toolInterfaces";
 import { Drawable, Graphic } from "./drawable";
 import { binarySearchNumber } from "../algorithms";
 import { PtTransform, Transform } from "./transform";
+import { Saveable } from "./save";
 
 
 
@@ -22,8 +23,9 @@ interface Brush {
     volume(g: PIXI.Graphics, t: Transform<Point, Point>, s: Curve<Curve<Curve<Point>>>, res: number): PIXI.Graphics;
 }
 
-
-class Brusher implements Acceptor<Curve<Point>>{
+@Saveable.register
+class Brusher implements Acceptor<Curve<Point>>, Saveable {
+    _saveName?: string;
     m: Map<Curve<Point>, BrushedCurve>;
     constructor(public dest: Acceptor<BrushedCurve>, public b: Brush, public res = 1) { this.m = new Map<Curve<Point>, BrushedCurve>(); }
     accept(o: Curve<Point>): boolean {
@@ -40,7 +42,9 @@ class Brusher implements Acceptor<Curve<Point>>{
         return r;
     }
 }
-class BrushedCurve implements Drawable {
+@Saveable.register
+class BrushedCurve implements Drawable, Saveable {
+    _saveName?: string;
     constructor(public c: Curve<Point>, public b: Brush, public res = 1) { }
     drawOn(g: PIXI.Graphics, t: Transform<Point, Point> | null): PIXI.Graphics {
         return this.b.curve(g, t, this.c, this.res);
@@ -52,8 +56,9 @@ class BrushedCurve implements Drawable {
 
 
 
-
-class Selected_br implements Brush {
+@Saveable.register
+class Selected_br implements Brush, Saveable {
+    _saveName?: string;
     line2d(g: PIXI.Graphics, x1: number, y1: number, x2: number, y2: number): PIXI.Graphics {
         throw new Error("Method not implemented.");
     } ellipse2d(g: PIXI.Graphics, x: number, y: number, w: number, h: number): PIXI.Graphics {
@@ -87,7 +92,11 @@ class Selected_br implements Brush {
 
 }
 
-class Pen implements Brush {
+
+
+@Saveable.register
+class Pen implements Brush, Saveable {
+    _saveName?: string;
     constructor(public s = new Style({ Color: new Color(1, 1, 1) })) { }
     line2d(g: PIXI.Graphics, x1: number, y1: number, x2: number, y2: number): PIXI.Graphics {
         g.moveTo(x1, y1);
@@ -183,6 +192,24 @@ class Pen implements Brush {
     }
 }
 
+
+@Saveable.register
+class Dots extends Pen {
+    constructor(s = new Style({ Color: new Color(1, 1, 1) })) { super(s); }
+    curve(g: PIXI.Graphics, trns: Transform<Point, Point>, c: Curve<Point>, res: number): PIXI.Graphics {
+        for (var t = 0; t < 1; t += 1 / res) {
+            var pt = trns.apply(c.get(t)).normalize();
+            var w = 1;
+            if (pt.s.defaults(this.s).vars.width != null) {
+                w = pt.s.defaults(this.s).vars.width.v;
+            }
+            g.drawCircle(pt.x, pt.y, w);
+        }
+        return g;
+    }
+}
+
+@Saveable.register
 class SmartPen_bisect extends Pen {
     constructor(s = new Style({ Color: new Color(1, 1, 1) })) { super(s); }
 
@@ -220,7 +247,7 @@ class SmartPen_bisect extends Pen {
 
 
 
-
+@Saveable.register
 class SmartPen_deriv extends Pen {
     constructor(s = new Style({ Color: new Color(1, 1, 1) })) { super(s); }
 
@@ -285,17 +312,23 @@ type Pair<A, B> = {
     b: B;
 }
 
+
 abstract class CurveFlattener {
     abstract flatten(c: Curve<Point>, res: number): IterableIterator<Pair<number, Point>>;
 }
-class SimpleFlattener extends CurveFlattener {
+
+@Saveable.register
+class SimpleFlattener extends CurveFlattener implements Saveable {
+    _saveName?: string;
     *flatten(c: Curve<Point>, res: number): IterableIterator<Pair<number, Point>> {
         for (var t = 0; t < 1; t += 1 / res) {
             yield { a: t, b: c.get(t) };
         }
     }
 }
-class DerivFlattener extends CurveFlattener {
+@Saveable.register
+class DerivFlattener extends CurveFlattener implements Saveable {
+    _saveName?: string;
     *flatten(c: Curve<Point>, res: number): IterableIterator<Pair<number, Point>> {
         const d = c.derivative();
         for (var t = 0; t < 1;) {
@@ -310,12 +343,13 @@ class DerivFlattener extends CurveFlattener {
     }
 }
 
+@Saveable.register
 class SmartPen extends SmartPen_deriv { }
 
 export {
     Brusher,
     Brush, Selected_br,
-    Pen, SmartPen_deriv, SmartPen_bisect, SmartPen,
+    Pen, Dots, SmartPen_deriv, SmartPen_bisect, SmartPen,
     BrushedCurve,
 
     CurveFlattener, SimpleFlattener, DerivFlattener

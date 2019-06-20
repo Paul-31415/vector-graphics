@@ -1,3 +1,4 @@
+import { Saveable } from "./save";
 
 
 
@@ -22,7 +23,9 @@ function bound(x: number, l: 0, h: 255) {
     return Math.min(Math.max(x, l), h);
 }
 
-class Color implements Vector<Color> {
+@Saveable.register
+class Color implements Vector<Color>, Saveable {
+    _saveName?: string;
     static Gamma: number = 2;
     constructor(public r = 0, public g = 0, public b = 0, public a = 1) {
 
@@ -71,7 +74,10 @@ class Color implements Vector<Color> {
 
 }
 
-class Scalar /*extends Number*/ implements Vector<Scalar> {
+
+@Saveable.register
+class Scalar /*extends Number*/ implements Vector<Scalar>, Saveable {
+    _saveName?: string;
     constructor(public v = 0) { }
     copy(): Vector<Scalar> {
         return new Scalar(this.v);
@@ -113,12 +119,24 @@ type VarsType = {
 };
 
 
-
-class Style implements Vector<Style> {
+@Saveable.register
+class Style implements Vector<Style>, Saveable {
+    _saveName?: string;
     vars: VarsType
 
     constructor(v: VarsType) {
         this.vars = v;
+    }
+
+    defaults(d: Style): Style {
+        var vr: VarsType = {};
+        for (var i in d.vars) {
+            vr[i] = d.vars[i];
+        }
+        for (var i in this.vars) {
+            vr[i] = this.vars[i];
+        }
+        return new Style(vr);
     }
 
     applyLine(g: PIXI.Graphics, defaults: Style): PIXI.Graphics {
@@ -217,8 +235,9 @@ function CenteredModulus(a: number, m: number) {
     return (((a % m) + m + m / 2) % m) - m / 2;
 }
 
-
-class Angle2D implements Vector<Angle2D>{
+@Saveable.register
+class Angle2D implements Vector<Angle2D>, Saveable {
+    _saveName?: string;
     constructor(public a: number) { }
 
     copy(): Vector<Angle2D> {
@@ -254,8 +273,9 @@ class Angle2D implements Vector<Angle2D>{
     }
 }
 
-
-class Point implements Vector<Point> {
+@Saveable.register
+class Point implements Vector<Point>, Saveable {
+    _saveName?: string;
 
     constructor(public x = 0, public y = 0, public z = 0, public w = 1, public s = new Style({})) {
 

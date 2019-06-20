@@ -3,6 +3,7 @@ import { Vector, Point } from "./vectors";
 import { Brush } from "./brush";
 import { Drawable } from "./drawable";
 import { PtTransform } from "./transform";
+import { Saveable, save } from "./save";
 
 
 
@@ -10,13 +11,14 @@ import { PtTransform } from "./transform";
 
 
 
-interface Curve<T> {
+interface Curve<T> extends Saveable {
     get(t: number): T;
     derivative(): Curve<T>;
 }
 
-
+@Saveable.register
 class WeightedAverageCurve<T extends Vector<any>> implements Curve<T> {
+    _saveName?: string;
     constructor(public c1: Curve<T>, public c2: Curve<T>, public a = .5) { }
     get(t: number): T {
         return this.c1.get(t).scale(this.a).addEqDiscardOther(this.c2.get(t).scale(1 - this.a));
@@ -27,25 +29,397 @@ class WeightedAverageCurve<T extends Vector<any>> implements Curve<T> {
 }
 
 
-/*
+function mod(n = 0, m = 1): number {
+    return ((n % m) + m) % m;
+}
+function modDomain(n = 0, l = 0, h = 1): number {
+    return mod(n - l, h - l) + l;
+}
+function divmodDomain(n = 0, l = 0, h = 1): number[] {
+    return [Math.floor((n - l) / (h - l)), mod(n - l, h - l) + l];
+}
+
+
+
+/*class DRef<T>{
+    r: { v: T };
+    constructor(v: T, d = true) { if (d) { this.r = { v: v }; } }
+    get(): T {
+        return this.r.v;
+    }
+    sCopy(): DRef<T> { const ret = new DRef<T>(this.get(), false); ret.r = this.r; return ret; }
+    dCopy(): DRef<T> { return new DRef<T>(this.get()); }
+	}*/
+
+@Saveable.register
+class SplineKnot<T extends Vector<any>> implements Saveable {
+    _saveName?: string;
+    isSplineKnot = true;
+    constructor(public v: number, public continuity = 0, public cpsl = 0, public cpsh = 0) { }
+    degree(): number { return this.cpsh - this.cpsl - 1; }//this.cps.length - 1; }
+    get(s: Spline<T>, n: number): WeightedVector<T> {
+        return s.controlPoints[mod(this.cpsl + n, s.controlPoints.length)];
+    }
+    getA(s: Spline<T>): WeightedVector<T>[] {
+        return s.controlPoints.slice(this.cpsl, Math.min(this.cpsh, s.controlPoints.length)).concat(s.controlPoints.slice(0, Math.max(0, this.cpsh - s.controlPoints.length)));
+    }
+    copy(): SplineKnot<T> {
+        return new SplineKnot<T>(this.v, this.continuity, this.cpsl, this.cpsh);
+    }
+}
+@Saveable.register
 class Spline<T extends Vector<any>> implements Curve<T>, Vector<Spline<T>>{
-    constructor(
-	
-	
-	
+    _saveName?: string;
+    copy(): Vector<Spline<T>> {
+        const r = new Spline<T>([]);
+        //const rk: SplineKnot<WeightedVector<T>>[] = [];
+        /*const m = new Map<WeightedVector<T>, WeightedVector<T> >();
+        for (var i in this.knots) {
+            for (var ii in this.knots[i].cps) {
+                if (!m.has(this.knots[i].get(this,ii))) {
+                    m.set(this.knots[i].get(this,ii), this.knots[i].get(this,ii).copy() });
+                }
+            }
+			}*/
+
+        for (var i in this.knots) {
+            /*var nk = this.knots[i].copy();new SplineKnot<WeightedVector<T>>(this.knots[i].v, this.knots[i].continuity, []);
+            for (var j = 0; j < this.knots[i].cps.length; j++) {
+                nk.cps[j] = this.knots[i].cps[j];
+                nk.cps[j].r = m.get(this.knots[i].cps[j].r);
+            }*/
+            r.knots[i] = this.knots[i].copy();
+        }
+        //r.knots = rk;
+        for (var i in this.controlPoints) {
+            r.controlPoints[i] = this.controlPoints[i].copy();
+        }
+        return r;
+    }
+    add(other: Vector<Spline<T>>): Vector<Spline<T>> {
+        throw new Error("Method not implemented.");
+    }
+    scale(s: number): Vector<Spline<T>> {
+        throw new Error("Method not implemented.");
+    }
+    zero(): Vector<Spline<T>> {
+        throw new Error("Method not implemented.");
+    }
+    addEq(other: Vector<Spline<T>>): Vector<Spline<T>> {
+        throw new Error("Method not implemented.");
+    }
+    addEqDiscardOther(other: Vector<Spline<T>>): Vector<Spline<T>> {
+        throw new Error("Method not implemented.");
+    }
+    scaleEq(s: number): Vector<Spline<T>> {
+        throw new Error("Method not implemented.");
+    }
+    zeroEq(): Vector<Spline<T>> {
+        throw new Error("Method not implemented.");
+    }
+    derivative(): Curve<T> {
+        //derivative of this is like a b-spline's
+        //dB(i,k,x)/dx =
+        //k*(  B(i,k-1,x)   / (t_(i+k)   - t_(i+1))
+        //   - B(i+1,k-1,x) / (t_(i+k+1) - t_(i+1)) )
+        const res = this.copy();
+
+        for (var ki in this.knots) {
+            //do something
+
+
+        }
+        throw new Error("Method not implemented.");
+        return res;
+    }
+    knots: SplineKnot<T>[] = [];
+    controlPoints: WeightedVector<T>[] = [];
+    constructor(cps: Array<T | WeightedVector<T>>) {
+        //const cpcp: DRef<WeightedVector<T>>[] = []
+        for (var i in cps) {
+            if (isWeighted<T>(cps[i])) {
+                this.controlPoints[i] = <WeightedVector<T>>cps[i];
+            } else {
+                this.controlPoints[i] = new WeightedVector<T>(<T>cps[i], 1);
+            }
+            //cpcp[i] = this.controlPoints[i].sCopy();
+        }
+        this.knots = [new SplineKnot<T>(0, 0, 0, this.controlPoints.length), new SplineKnot<T>(1, 0, this.controlPoints.length, this.controlPoints.length)];
+    }
+
+    //-----------GET------------
+
+    get(t: number): T {
+        const domainKnotI = this.getKnotIndex(t);
+        const domainKnot = this.getKnot(domainKnotI);
+        //construct deBoor net thing
+        const resNet: WeightedVector<T>[] = [];
+        const cps = domainKnot.getA(this);
+        for (let i in cps) {
+            resNet[i] = cps[i].copy();
+        }
+        for (var k = 1; k <= domainKnot.degree(); k++) {
+            for (var i = 0; i <= domainKnot.degree() - k; i++) {
+                //resNet[i] = something with it and resNet[i+1];
+                const alpha = this.getKnotAlpha(t, domainKnotI, i, k);
+                resNet[i].scaleEq(alpha).addEqDiscardOther(resNet[i + 1].scale(1 - alpha));
+            }
+        }
+        return resNet[0].get();
+    }
+
+
+    getDeBoorNet(t: number, num = Infinity): WeightedVector<T>[][] {
+        const domainKnotI = this.getKnotIndex(t);
+        const domainKnot = this.getKnot(domainKnotI);
+        //construct deBoor net thing
+
+        const resNet: WeightedVector<T>[][] = [domainKnot.getA(this)];
+
+        for (var k = 1; k <= Math.min(domainKnot.degree(), num); k++) {
+            resNet[k] = [];
+            for (var i = 0; i <= domainKnot.degree() - k; i++) {
+                //resNet[i] = something with it and resNet[i+1];
+                const alpha = this.getKnotAlpha(t, domainKnotI, i, k);
+                resNet[k][i] = resNet[k - 1][i].scale(alpha).addEqDiscardOther(resNet[k - 1][i + 1].scale(1 - alpha));
+            }
+        }
+        return resNet;
+    }
+
+
+    getKnotAlpha(t: number, ki: number, i: number, k: number): number {
+        if (k <= 0) {
+            return 1;
+        }
+        const keff = this.getKnot(ki).degree() - k + 2;
+        const suboffset = i - keff + 1;
+        //const iRange = this.getKnotIRange(ki, i + k);
+        const ti = this.getEffectiveT(this.getIOffset(ki, suboffset));
+
+        const ti_plus_k = this.getEffectiveT(this.getIOffset(ki, keff + suboffset));
+
+        var denom1 = (ti_plus_k - ti);
+        var v1 = (t - ti) / denom1;
+        if (denom1 == 0) {
+            v1 = 0;
+        }
+        return 1 - v1;
+    }
+
+    getIOffset(i: number, k: number) {
+        var ind = mod(i, this.knots.length);
+        const sind = ind;
+        var dind = 0;
+        if (k >= 0) {
+            for (ind = (ind + 1) % this.knots.length; k > 0; ind = (ind + 1) % this.knots.length) {
+                k -= Math.max(0, this.getKnotMultiplicity(this.knots[ind], this.knots[sind]));
+                dind++;
+            }
+            return i + dind;
+        }
+        dind++;
+        for (; k < 0; ind = (ind + this.knots.length - 1) % this.knots.length) {
+            k += Math.max(0, this.getKnotMultiplicity(this.knots[ind], this.knots[sind]));
+            dind--;
+        }
+        return i + dind;
+    }
+
+    getKnotMultiplicity(k: SplineKnot<T>, kcontext: SplineKnot<T>): number {
+        //other knot's multiplicity = this knot's degree - other knot's continuity
+        return kcontext.degree() - k.continuity;
+    }
+    getKnotIRange(i: number, k: number): number[] {
+        const iVars = divmodDomain(i, 0, this.knots.length);
+        var ind = iVars[1];
+        const sind = ind;
+        var dind = 0;
+        const kc = k;
+        for (ind = (ind + 1) % this.knots.length; k > 0; ind = (ind + 1) % this.knots.length) {
+            k -= Math.max(0, this.getKnotMultiplicity(this.knots[ind], this.knots[sind]));
+            dind++;
+        }
+        k = kc;
+        var ldind = 1;
+        //move startInd down
+        for (ind = i; k > 0; ind = (ind + this.knots.length - 1) % this.knots.length) {
+            k -= Math.max(0, this.getKnotMultiplicity(this.knots[ind], this.knots[sind]));
+            ldind--;
+        }
+
+
+        return [i + ldind, i + dind];
+    }
+    getKnotTRange(i: number, k: number): number[] {
+        const r = this.getKnotIRange(i, k);
+        r[0] = this.getEffectiveT(r[0]);
+        r[1] = this.getEffectiveT(r[1]);
+        return r;
+    }
+
+    getEffectiveT(i: number): number {
+        const low = this.knots[0].v;
+        const high = this.knots[this.knots.length - 1].v;
+
+        const iVars = divmodDomain(i, 0, this.knots.length);
+        return this.knots[iVars[1]].v + (high - low) * iVars[0];
+    }
+    getReducedT(t: number): number {
+        const low = this.knots[0].v;
+        const high = this.knots[this.knots.length - 1].v;
+        return modDomain(t, low, high);
+    }
+
+    getKnotIndex(t: number): number {
+        t = modDomain(t, this.knots[0].v, this.knots[this.knots.length - 1].v);
+        var l = 0;
+        var h = this.knots.length - 1;
+        while (l < h) {
+            const m = (l + h) >> 1;
+            if (t >= this.knots[m].v) {
+                l = m + 1;
+            } else {
+                h = m;
+            }
+        }
+        return l - 1;
+    }
+    getKnot(n: number): SplineKnot<T> {
+        return this.knots[mod(n, this.knots.length)];
+    }
+    getKnotAtT(t: number): SplineKnot<T> {
+        const i = this.getKnotIndex(t);
+        return this.knots[i];
+    }
+
+    //-----------dealing with controlPoints and knots----------
+    splice(i: number, d = 0, stuff: WeightedVector<T>[] = [], sepknot = -1): WeightedVector<T>[] {
+        const res = this.controlPoints.splice(i, d, ...stuff);
+        const delta = stuff.length - d;
+        for (var ki = 0; ki < this.knots.length; ki++) {
+            if (sepknot == -1) {
+                if (this.knots[ki].cpsl >= i) {
+                    this.knots[ki].cpsl += delta;
+                }
+                if (this.knots[ki].cpsh >= i) {
+                    this.knots[ki].cpsh += delta;
+                }
+                if (this.knots[ki].cpsl > this.knots[ki].cpsh) {
+                    this.knots.splice(ki, 1);
+                    ki--;
+                }
+            } else {
+                if (ki > sepknot) {
+                    this.knots[ki].cpsl += delta;
+                    this.knots[ki].cpsh += delta;
+                }
+            }
+        }
+        return res;
+    }
+
+    insertKnot(t: number, c: number/*,epsilon=0.00000000001*/): Spline<T> {
+        //todo: fix insertion of knot into b-spline area (area bounded by knots more than c0 continuous)
+
+        //get domain
+        const index = this.getKnotIndex(t);
+        const knot = this.getKnot(index);
+        const multiplicity = Math.max(0, knot.degree() - c);
+        const net = this.getDeBoorNet(t, multiplicity);
+
+        //flattening net
+        const rescps: WeightedVector<T>[] = [];
+        var ri = 0;
+        //up the first side
+        for (var i = 0; i <= multiplicity; i++) {
+            rescps[ri] = net[i][0];
+            ri++;
+        }
+        //over the top
+        for (var i = 1; i < net[multiplicity].length; i++) {
+            rescps[ri] = net[multiplicity][i];
+            ri++;
+        }
+        if (c < 0) {//disconnect if not continuous
+            rescps[ri] = net[multiplicity][i].copy();
+            ri++;
+        }
+
+        //down the second side
+        for (var i = multiplicity - 1; i >= 0; i--) {
+            rescps[ri] = net[i][net[i].length - 1];
+            ri++;
+        }
+        const kr = new SplineKnot<T>(t, c, knot.cpsl, knot.cpsh);
+        this.knots.splice(index + 1, 0, kr);
+        this.splice(knot.cpsl, knot.degree() + 1, rescps, index);
+
+
+        return this;
+    }
+
+
+
+    modifyKnot(n: number, c = Infinity, highSide = false): Spline<T> {
+        //todo: implement this
+
+
+        //changes knot continuity to c while attempting to preserve shape
+        // if the multiplicity of the knot reaches 0, it is removed
+        const index = n;
+        const knot = this.getKnot(index);
+        const t = knot.v;
+        if (knot.continuity == c) {
+            return this;
+        }
+        if (knot.continuity > c) {
+            const dCont = knot.continuity - c;
+            const multiplicity = Math.max(0, knot.degree() - dCont);
+            const net = this.getDeBoorNet(t, multiplicity);
+            //flattening net
+            const rescps: WeightedVector<T>[] = [];
+            var ri = 0;
+            //up the first side
+            for (var i = 0; i <= multiplicity; i++) {
+                rescps[ri] = net[i][0];
+                ri++;
+            }
+            //over the top
+            for (var i = 1; i < net[multiplicity].length; i++) {
+                rescps[ri] = net[multiplicity][i];
+                ri++;
+            }
+            if (c < 0) {//disconnect if not continuous
+                rescps[ri] = net[multiplicity][i].copy();
+                ri++;
+            }
+
+            //down the second side
+            for (var i = multiplicity - 1; i >= 0; i--) {
+                rescps[ri] = net[i][net[i].length - 1];
+                ri++;
+            }
+            this.splice(knot.cpsl, knot.degree() + 1, rescps, index - 1);
+
+            this.knots[n].continuity = c;
+        } else {
+            throw new Error("Method not implemented.");
+        }
+        return this;
+    }
 
 
 
 }
-*/
 
 
 
 
 
-
-
-class KnotVector {
+@Saveable.register
+class KnotVector implements Saveable {
+    _saveName?: string;
     isKnotVector = true;
     constructor(public n: number[]) { }
     get(t: number, degree: number): number {
@@ -156,8 +530,11 @@ class KnotVector {
     }
 }
 
+
+@Saveable.register
 class BSpline<T extends Vector<any>> implements Curve<T>, Vector<BSpline<T>>{
-    //BSpline addition isn't working properly
+    _saveName?: string;
+    //BSpline addition isn't working properly (doesn't deal with degree diffs)
     knot: KnotVector;
     controlPoints: WeightedVector<T>[] = [];
     constructor(cps: Array<T | WeightedVector<T>>, public degree: number, k: KnotVector | number[] | null) {
@@ -585,8 +962,9 @@ class BSpline<T extends Vector<any>> implements Curve<T>, Vector<BSpline<T>>{
 
 
 
-
+@Saveable.register
 class PiecewiseCurve<T extends Vector<any>> implements Curve<T>{
+    _saveName?: string;
     /*copy(): Vector<PiecewiseCurve<T>> {
         var cs = new Array<Curve<T>>();
         for (var i in this.parts) {
@@ -645,7 +1023,10 @@ function makeWeightedKeepReference<T extends Vector<any>>(v: T, w = 1): Weighted
 }
 
 // for use in Bezier
-class WeightedVector<T extends Vector<any>> implements Vector<WeightedVector<T>> {
+
+@Saveable.register
+class WeightedVector<T extends Vector<any>> implements Vector<WeightedVector<T>>, Saveable {
+    _saveName?: string;
     public v: T;
     constructor(V: T, public w = 1, d = false) { if (!d) { this.v = V.scale(w); } else { this.v = V; } }
     copy(): Vector<WeightedVector<T>> {
@@ -730,8 +1111,9 @@ function continuize<T>(level = 1, ...bezs: Array<Bezier<T>>) {
 
 
 
-
+@Saveable.register
 class Bezier<T extends Vector<any>> implements Vector<Bezier<T>>, Curve<T> {
+    _saveName?: string;
     isBezier = true;
     controlPoints: WeightedVector<T>[] = [];
     constructor(cps: Array<T | WeightedVector<T>>) {
@@ -1019,6 +1401,6 @@ class RationalBezier<T extends Vector<any>> extends Bezier<T> {
 
 
 export {
-    Curve, Bezier, WeightedVector, BSpline,
+    Curve, Bezier, WeightedVector, BSpline, Spline,
     PiecewiseCurve, WeightedAverageCurve
 }

@@ -2,12 +2,16 @@ import * as PIXI from "pixi.js";
 import { Drawable, Graphic } from "./drawable";
 import { Transform } from "./transform";
 import { Point } from "./vectors";
+import { Saveable } from "./save";
 
-interface Camera {
+interface Camera extends Saveable {
     image(d: Drawable): PIXI.Container;
 }
 
+
+@Saveable.register
 class SimpleCamera implements Camera {
+    _saveName?: string;
     constructor(public viewTransform: Transform<Point, Point> | null) { }
 
     image(d: Drawable): PIXI.Container {

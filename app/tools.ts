@@ -4,6 +4,7 @@ import { Bezier, Curve, BSpline } from "./bezier";
 import { Point, Style, Color, Scalar, Vector, Angle2D } from "./vectors";
 import { Selected_br, SmartPen } from "./brush";
 import { Acceptor } from "./toolInterfaces";
+import { Saveable } from "./save";
 
 //tools are sprites
 abstract class Tool extends PIXI.Sprite {
@@ -14,7 +15,9 @@ abstract class Tool extends PIXI.Sprite {
 }*/
 
 
-class InteractionEventVector implements Vector<InteractionEventVector>{
+@Saveable.register
+class InteractionEventVector implements Vector<InteractionEventVector>, Saveable {
+    _saveName?: string;
     copy(): Vector<InteractionEventVector> {
         return new InteractionEventVector(this.width, this.height, this.pressure, this.rotationAngle.copy(), this.tangentialPressure, this.tiltX, this.tiltY, this.twist.copy());
     }
@@ -101,21 +104,15 @@ class InteractionEventVector implements Vector<InteractionEventVector>{
 
 
 
-interface Editable {
+interface Selectable {
     //testIntersection(ray: Curve<Point>): boolean;
     testIntersection(s: PIXI.Sprite): boolean;
     drawSelected: boolean;
     selectColor: Color;
 
-    edit_function?: () => null
-
-
-
-
-
 }
-class EditTool extends Tool {
-    selected: Editable[];
+class SelectTool extends Tool {
+    selected: Selectable[];
 
     constructor(public domain: Canvas, g: any) {
         super(g);
@@ -131,6 +128,12 @@ class EditTool extends Tool {
 
 
 }
+
+
+
+
+
+
 
 abstract class DrawTool<T> extends Tool {
     work: Map<PIXI.interaction.InteractionEvent, T>;
@@ -260,7 +263,7 @@ class BSplineTool extends DrawTool<BSpline<Point>> {
 
 
 export {
-    Editable,
-    EditTool,
+    Selectable,
+    SelectTool,
     BezTool, BSplineTool
 }

@@ -3,8 +3,22 @@ import { Drawable, Graphic } from "./drawable";
 import { PtTransform, Transform } from "./transform";
 import { Acceptor } from "./toolInterfaces";
 import { Point } from "./vectors";
+import { Saveable, NegatedSet } from "./save";
 
-class Canvas extends PIXI.Sprite implements Drawable, Acceptor<Drawable> {
+//PIXI.Sprite isn't saveable
+
+
+@Saveable.register
+class Canvas implements Drawable, Acceptor<Drawable> {
+    _saveName?: string;
+    /*_saveIgnore: Set<string> = new NegatedSet<string>(["contents"]);
+    _loadSpecial() {
+        const s = new PIXI.Sprite();
+        for (var i in s) {
+            super[i] = s[i];
+        }
+		
+    }*/
     accept(o: Drawable): boolean {
         this.add(o);
         return true;
@@ -16,7 +30,7 @@ class Canvas extends PIXI.Sprite implements Drawable, Acceptor<Drawable> {
         return true;
     }
     constructor(public contents: Array<Drawable>) {
-        super();
+        // super();
     }
     draw(t: Transform<Point, Point> | null): Graphic {
         return new Graphic(this, this.drawOn(new PIXI.Graphics(), t, ));

@@ -1,13 +1,18 @@
 import { Vector, Point } from "./vectors";
+import { Saveable } from "./save";
 
-interface Transform<A, B> {
+
+interface Transform<A, B> extends Saveable {
     apply(a: A): B;
     transform_linear: boolean;
     transform_invertible: boolean;
     inverse(): Transform<B, A>;
     unapply(b: B): A;
 }
+
+@Saveable.register
 class CompoundTransform<A, B, C> implements Transform<A, C>{
+    _saveName?: string;
     transform_linear: boolean;
     transform_invertible: boolean;
     constructor(public t1: Transform<A, B>, public t2: Transform<B, C>) {
@@ -146,8 +151,9 @@ function inverse(m: Array<Array<number>>): Array<Array<number>> {
 
 
 
-
+@Saveable.register
 class PtTransform implements Transform<Point, Point>{
+    _saveName?: string;
     transform_linear = true;
     transform_invertible: boolean;
     unapply(b: Point): Point {

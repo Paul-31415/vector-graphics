@@ -1,3 +1,16 @@
+b-spline idea:
+  knot vector: each knot has a pointer to an array of the controlpoints that define it's region
+                 use accessors and stuff to maintain it while also having a full-size controlpoint array
+				 spline extension:
+				    knots also have a multiplicity number instead of having multiple knots in the same place
+					 this changes the connectedness between the sub arrays. This controls the continuity at
+					 each knot
+					knots also have a degree which specifies the degree of it's region (so one doesn't have
+					 to have a 5th order representation of a 2nd order funciton eg)
+					two modes of addition:
+					 standard b-spline addition - (for unweighted vectors) (a+b)(t) = a(t)+b(t)
+					 knot-sliding addition - for interpolation in which knots should slide around
+
 
 capitalize all class names properly
 
@@ -28,6 +41,8 @@ if possible, provide support for trackpad-multitouch without external dependenci
 make more tools
 - selector/editor
 - paintbrush
+- tool plugins/dynamics
+  - something the tool takes as an arg that modifies the output? (or make a point tool and point acceptors and a curve cunstructor that is a point acceptor)
 
 make more splines
 - fixed-length spline has a number of free points that are moved by it to approach a desired length
