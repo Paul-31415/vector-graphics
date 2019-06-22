@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { Pen, SmartPen, Brusher, BrushedCurve, Dots } from "./brush";
-import { PtTransform } from "./transform";
+import { PtTransform, Transform } from "./transform";
 import { Bezier, WeightedVector, BSpline, WeightedAverageCurve, Spline } from "./bezier";
 import { Point, Style, Color, Scalar } from "./vectors";
 import { Canvas } from "./canvas";
@@ -8,7 +8,7 @@ import { Graphics } from "pixi.js";
 import { BezTool, BSplineTool } from "./tools";
 import { randomBytes } from "crypto";
 import { Acceptor } from "./toolInterfaces";
-import { save, load } from "./save";
+import { save, load, download, asyncLoad, asyncSave, TreeProgressBar, AsyncTreeProcess, BiMap } from "./save";
 
 
 let renderer = PIXI.autoDetectRenderer();
@@ -27,16 +27,30 @@ function color(r = 0, g = 0, b = 0): Style {
     return new Style({ "color": new Color(r, g, b, 1), "width": new Scalar(40) });
 }
 
-
 window.onresize = function(_event: UIEvent): void {
     app.renderer.resize(window.innerWidth, window.innerHeight);
 };
 
 
 document.body.appendChild(app.view);
+class Id<A> implements Transform<A, A> {
+    apply(a: A): A {
+        return a;
+    }
+    transform_linear = true;
+    transform_invertible = true;
+    inverse(): Transform<A, A> {
+        return this;
+    }
+    unapply(b: A): A {
+        return b;
+    }
+    _saveName?: string;
+}
+var id = new Id<Point>();
 
 
-var id = new PtTransform();
+
 
 var cvs = new Canvas([]);
 
@@ -211,7 +225,12 @@ const spl = new Spline<Point>([
 ]);
 const s = save;
 const l = load;
+const sa = asyncSave;
+const la = asyncLoad;
 
+console.log(s(testSpline3.c));
+console.log(sa(testSpline3.c));
+debugger;
 
 
 const ptr = new PIXI.Text();
@@ -223,23 +242,23 @@ const splp2 = new BrushedCurve(spl, new Pen(style3_5), 256);
 cvs.add(splp);
 cvs.add(splp2);
 
-cvs.add(testSpline);
-cvs.add(testSpline2);
+//cvs.add(testSpline);
+//cvs.add(testSpline2);
 //cvs.add(testSpline4);
 
-cvs.add(testSpline5);
+//cvs.add(testSpline5);
 //cvs.add(testSpline6);
 
 cvs.add(testSpline3);
 
-cvs.add(refSpline);
+//cvs.add(refSpline);
 
 //s(cvs);
 debugger;
 
 var tb = new Bezier<BSpline<Point>>([(testSpline.c as BSpline<Point>), (testSpline2.c as BSpline<Point>)]);
 
-var ds = [/*testSpline, testSpline2, */testSpline3, testSpline5];
+var ds: BrushedCurve[] = [/*testSpline, testSpline2, */testSpline3, /*testSpline5*/];
 
 var pen = new Pen(style2);
 
@@ -258,10 +277,25 @@ app.stage.addChild(pointer);
 var ki = 0;
 
 
+
+
+
+
 var splA = spl.copy();
 
 var time = 0;
 testSpline3.c = (testSpline.c as BSpline<Point>).scale(0).add(testSpline2.c as BSpline<Point>);//tb.get(1);
+
+
+
+// loadingbar
+const loadingBarG = new PIXI.Graphics();
+var bar = sa(testSpline3.c).progress;
+
+app.stage.addChild(loadingBarG);
+loadingBarG.x = 100;
+loadingBarG.y = 100;
+
 function gameLoop(delta: number): void {
     g.clear();
     for (var dsi = 0; dsi < ds.length; dsi++) {
@@ -284,10 +318,21 @@ function gameLoop(delta: number): void {
         }
     }
 
+    loadingBarG.clear();
+    loadingBarG.lineStyle(2, 0xff0000);
+    loadingBarG.moveTo(0, - 3);
+    loadingBarG.lineTo(100 * bar.getProgress(), y * 3);
+    for (var y = 0; y < bar.denominators.length; y++) {
+        loadingBarG.moveTo(0, y * 3);
+        loadingBarG.lineTo(100 * bar.numerators[y] / bar.denominators[y], y * 3);
+    }
+
 
     s;
     l;
-    debugger;
+    sa;
+    la;
+    //    debugger;
 
 
     const ptrr = splA.get(ptrt);
@@ -415,3 +460,15 @@ document.addEventListener("keydown", (ke: KeyboardEvent) => {
 });
 
 
+
+//save
+document.addEventListener("keydown", (ke: KeyboardEvent) => {
+    if (ke.code == "KeyS" && ke.metaKey) { //command-s
+        const cb = function(o: AsyncTreeProcess<string>) {
+            download("save.json", o.result);
+        }
+
+        bar = asyncSave(cvs, new BiMap<string, any>(), cb).progress;
+
+    }
+});
