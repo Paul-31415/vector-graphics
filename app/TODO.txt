@@ -1,3 +1,46 @@
+3d stuff is hard, so lets just try to get volume-tracing/ray-tracing down with gpujs
+so: make drawable stuff have to have something properly gpujs-ey
+eg like make a point spline calc it's vertices in parallel then put them on the screen
+and hey, lets try to use webgl for the fast-view.
+
+
+
+[ ] seperate ui stuff from math/render stuff
+
+
+
+[•] make it good at 2d art
+  [•] tools:
+    [•] brush
+	[ ] curve editor
+	[ ] selector
+	[ ] curve tool (like brush but each click adds a point, not a curve)
+
+[ ] make a plugin system
+[ ] make most of these features part of a standard plugin set
+
+core features:
+[ ] drawing & animating
+  [ ] draw
+  [ ] edit
+  [ ] erase
+  [ ] animate
+[ ] saveing
+[ ] loading
+[ ] 3d movement
+[ ] rendering to video
+[ ] (plugin system)
+
+things not core:
+[ ] lighting
+[ ] physics
+  [ ] fixed-length splines
+
+
+
+
+
+
 b-spline idea:
   knot vector: each knot has a pointer to an array of the controlpoints that define it's region
                  use accessors and stuff to maintain it while also having a full-size controlpoint array
@@ -14,8 +57,8 @@ b-spline idea:
 
 capitalize all class names properly
 
-implement saving
-make saving safe
+[√] implement saving [ ] improve ui
+[ ] make saving safe 
 
 make transforms less annoying to deal with
 
@@ -25,10 +68,48 @@ intensify cacheing
   • maybe make drawable subclass PIXI.Graphics
 - cache lighting calculations for a given scene (later)
 
-refactor brushes to use point generators
+[ ] refactor brushes to use point generators
 - fixed-length spline would have a point generator included that would refine (and cache) the length estimate
 
-make a proper interface
+
+[•] class State:
+  [√] saveable
+  [ ] undo history/tree
+  [•] interface in state
+    [√] freecam
+    [ ] buttons n stuff
+    [ ] tools
+	[ ] time
+      [ ] figure out implementation
+  [ ] cameras
+  [ ] render cacheing
+  [ ] views
+    [ ] simple fast rendering for movement fluidity etc
+	  [ ] hse
+	  [ ] fake shading to show 3d
+	  [ ] refine when still
+        [ ] small angle approx
+		  [ ] rerender priorities based on max visual error and time cost
+           -  perhaps could tint all things needing to be rerendered
+	[ ] 3d modes
+      [ ] none/normal
+	   -  percepturally realistic:
+	    [ ] mirrors in the scene
+		[ ] multiple views
+	  [ ] stereo anaglyph
+	     - can get away with using normal render + tint?
+	  [ ] cross eyes
+	   -  for shaders with things like outlines, have a
+	      seperately defined viewcam to create those
+		  outlines from but actually render it from a different cam
+	  [ ] single image stereogram (but how to do color?)
+	  [ ] shutterglasses
+	  [ ] wobble
+      [ ] head tracking for pan/short range movements?
+
+
+
+[ ] make a proper interface
 - make a button
 - make some sliders maybe
 - brush/color select
@@ -98,3 +179,8 @@ add sound wavetracing engine
 Done:
 
 make vector types support memory efficient operations (eg: scaleEq, addEq, zeroEq) √
+
+useful papers:
+http://artis.imag.fr/~Cyril.Soler/DEA/Ombres/Papers/Arvo.Sig87.pdf
+ - add time to ray degrees of freedom for standard rendering
+ - for funky ray tracing (like relativistic ray tracing), more degrees of freedom (e.g. solid angle to 3d vector that represents distance traveled in 1 time unit)

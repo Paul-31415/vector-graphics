@@ -2,8 +2,8 @@ import * as PIXI from "pixi.js";
 import { Point, Style, Color, Scalar } from "./vectors";
 import { Bezier, Curve } from "./bezier";
 import { Acceptor } from "./toolInterfaces";
-import { Drawable, Graphic } from "./drawable";
-import { binarySearchNumber } from "../algorithms";
+import { Drawable, Graphic, perspLine } from "./drawable";
+//import { binarySearchNumber } from "./algorithms";
 import { PtTransform, Transform } from "./transform";
 import { Saveable } from "./save";
 
@@ -191,6 +191,44 @@ class Pen implements Brush, Saveable {
         throw new Error("Method not implemented.");
     }
 }
+@Saveable.register
+class PerspPen extends Pen {
+    constructor(s = new Style({ Color: new Color(1, 1, 1) })) { super(s); }
+
+    curve(g: PIXI.Graphics, trns: Transform<Point, Point>, c: Curve<Point>, res: number): PIXI.Graphics {
+        var oldPt = trns.apply(c.get(0)).normalize();
+        for (var t = 0; t < 1; t += 1 / res) {
+            var pt = trns.apply(c.get(t)).normalize();
+            //oldPt.s.applyLine(g, this.s);
+            perspLine(g, oldPt, pt, this.s);
+            oldPt = pt;
+        }
+        return g;
+    }
+}
+
+@Saveable.register
+class DebugPen extends Pen {
+    constructor(s = new Style({ Color: new Color(1, 1, 1) })) { super(s); }
+
+    curve(g: PIXI.Graphics, trns: Transform<Point, Point>, c: Curve<Point>, res: number): PIXI.Graphics {
+        var oldPt = trns.apply(c.get(0)).normalize();
+        for (var t = 0; t < 1; t += 1 / res) {
+            var pt = trns.apply(c.get(t)).normalize();
+            //oldPt.s.applyLine(g, this.s);
+            if (pt.s.vars.EventData != null) {
+                pt.s.vars.width = new Scalar(pt.s.vars.EventData.pressure);
+            }
+            perspLine(g, oldPt, pt, this.s);
+            oldPt = pt;
+        }
+        return g;
+    }
+}
+
+
+
+
 
 
 @Saveable.register
@@ -228,7 +266,7 @@ class SmartPen_bisect extends Pen {
         for (var i = 0; i < 1; i += res) {
             const ti = lens.pop()[0];
             //get index from ptts
-            const ind = binarySearchNumber(ti, ptts);
+            //const ind = binarySearchNumber(ti, ptts);
             //todo
 
 
@@ -349,8 +387,8 @@ class SmartPen extends SmartPen_deriv { }
 export {
     Brusher,
     Brush, Selected_br,
-    Pen, Dots, SmartPen_deriv, SmartPen_bisect, SmartPen,
-    BrushedCurve,
+    Pen, Dots, SmartPen_deriv, SmartPen_bisect, SmartPen, DebugPen,
+    BrushedCurve, PerspPen,
 
     CurveFlattener, SimpleFlattener, DerivFlattener
 }

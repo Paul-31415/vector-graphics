@@ -320,24 +320,31 @@ function convertToJSONable(o: any | Saveable,
     }
 }
 
+function threadFuncHalt(p: AsyncHaltableProcess, f: any, ...a: any[]): void {
+    if (!p.halt) {
+        threadFunc(f, ...a);
+    }
+}
+//var debugOffset = 1;
 function asyncConvertToJSONable(o: any | Saveable,
-    progBar = new TreeProgressBar(),
+    pros: AsyncTreeProcess<string>,
     names = new BiMap<string, any | Saveable>(),
     types = new Map<string, any>(),
     uuidFunc = getUUIDfunction(),
     cont: (o: any) => void,
 ): void {
+    const progBar = pros.progress;
     if (names.hasVal(o)) {
-        threadFunc(cont, new WrappedObject(names.getKey(o)));
+        threadFuncHalt(pros, cont, new WrappedObject(names.getKey(o)));
         return;
     } else {
         if (o == null) {
-            threadFunc(cont, o);
+            threadFuncHalt(pros, cont, o);
             return;
         }
 
         if ((o as Saveable)._saveSpecial != null) {
-            threadFunc(cont, (o as Saveable)._saveSpecial(names));
+            threadFuncHalt(pros, cont, (o as Saveable)._saveSpecial(names));
             return;
         }
         const uuid = uuidFunc(o);
@@ -384,29 +391,45 @@ function asyncConvertToJSONable(o: any | Saveable,
             if (indx < keys.length) {
                 const i = keys[indx];
                 indx++;
-                if ((typeof ito[i]) == "object") {
-                    if (!isIgnored(o, i)) {
+                progBar.numerator++;
+                if (!isIgnored(o, i)) {
+                    if ((typeof ito[i]) == "object") {
+
                         const setandcont = function(res: any): void {
                             wo.O/*bject*/[i] = res;
                             iterstep(cont);
                         }
-                        threadFunc(asyncConvertToJSONable, ito[i], progBar, names, types, uuidFunc, setandcont);
+
+                        threadFuncHalt(pros, asyncConvertToJSONable, ito[i], pros, names, types, uuidFunc, setandcont);
+                        return;
+
+                    } else {
+                        wo.O/*bject*/[i] = ito[i];
+
+                        threadFuncHalt(pros, iterstep, cont);
                         return;
                     }
                 } else {
-                    wo.O/*bject*/[i] = ito[i];
-                    progBar.numerator++;
-
-                    threadFunc(iterstep, cont);
+                    //next
+                    threadFuncHalt(pros, iterstep, cont);
                     return;
                 }
             } else {
                 progBar.remSub();
-                threadFunc(cont, wo);
+                /*if (progBar.numerators.length == 2) {
+                    if (progBar.numerators[1] >= progBar.denominators[1] - debugOffset) {
+                        //debugger;
+                        const d = "ebug";
+                    }
+                }*/
+
+                threadFuncHalt(pros, cont, wo);
+
+
                 return;
             }
         }
-        threadFunc(iterstep, cont);
+        threadFuncHalt(pros, iterstep, cont);
     }
 }
 
@@ -535,7 +558,7 @@ function asyncConvertFromJSONable(o: WrappedObject,
 ): void {
     const progBar = pros.progress;
     if (o == null) {
-        threadFunc(cont, o);
+        threadFuncHalt(pros, cont, o);
         return;
     }
     if (o.O/*bject*/ == null) {
@@ -545,7 +568,7 @@ function asyncConvertFromJSONable(o: WrappedObject,
             if ((r as UnresolvedReference)._____isUnresolvedReference == true) {
                 r.addReferer(localObj, localName);
             }
-            threadFunc(cont, r);
+            threadFuncHalt(pros, cont, r);
             return;
         } else {
             //delay this dereference
@@ -553,7 +576,7 @@ function asyncConvertFromJSONable(o: WrappedObject,
             ur.addReferer(localObj, localName);
             unresolvedRefs.add(ur);
             names.set(o.N/*ame*/, ur);
-            threadFunc(cont, ur);
+            threadFuncHalt(pros, cont, ur);
             return;
         }
     } else {
@@ -591,11 +614,11 @@ function asyncConvertFromJSONable(o: WrappedObject,
                         return;
                     }
 
-                    threadFunc(asyncConvertFromJSONable, o.O/*bject*/[i], pros, names, types, unresolvedRefs, throwOnUnknownTypes, conti, ro, i);
+                    threadFuncHalt(pros, asyncConvertFromJSONable, o.O/*bject*/[i], pros, names, types, unresolvedRefs, throwOnUnknownTypes, conti, ro, i);
                 } else {
                     ro[i] = o.O/*bject*/[i];
                     progBar.numerator++;
-                    threadFunc(loopStep, cont);
+                    threadFuncHalt(pros, loopStep, cont);
                     return;
                 }
 
@@ -625,16 +648,16 @@ function asyncConvertFromJSONable(o: WrappedObject,
                             throw new Error("UnresolvedReference had wrong name or namespace.");
                         }
                         unresolvedRefs.delete((r as UnresolvedReference));
-                        threadFunc(cont, ro);
+                        threadFuncHalt(pros, cont, ro);
                         return;
                     }
                 }
                 names.set(o.N/*ame*/, ro);
-                threadFunc(cont, ro);
+                threadFuncHalt(pros, cont, ro);
                 return;
             }
         }
-        threadFunc(loopStep, cont);
+        threadFuncHalt(pros, loopStep, cont);
         return;
     }
 }
@@ -647,12 +670,15 @@ class functionWrapper {
         return func;
     }
 }
+interface AsyncHaltableProcess {
+    halt: boolean;
+}
 
 
-
-class AsyncTreeProcess<T>{
+class AsyncTreeProcess<T> implements AsyncHaltableProcess {
     done = false;
     failed = false;
+    halt = false;
     error: Error;
     result: T;
     constructor(public progress: TreeProgressBar) { }
@@ -663,6 +689,10 @@ class AsyncTreeProcess<T>{
     throw(e: Error) {
         this.error = e;
         this.failed = true;
+    }
+    stop() {
+        this.halt = true;
+        //and hope the hacky multithread process respects it
     }
 }
 
@@ -694,6 +724,7 @@ function save(o: any | Saveable, pbar = new TreeProgressBar(), names = new BiMap
 function nop(): void { }
 
 function asyncSave(o: any | Saveable, names = new BiMap<string, any | Saveable>(), cb: (p: AsyncTreeProcess<string>) => void = (p: AsyncTreeProcess<string>) => nop()): AsyncTreeProcess<string> {
+    //debugOffset++;
     const pros = new AsyncTreeProcess<string>(new TreeProgressBar());
     const ret = function(o: any): void {
         pros.set(JSON.stringify(o));
@@ -701,7 +732,7 @@ function asyncSave(o: any | Saveable, names = new BiMap<string, any | Saveable>(
     }
     const types = new Map<string, any>();
 
-    threadFunc(asyncConvertToJSONable, o, pros.progress, names, types, getUUIDfunction(), ret);
+    threadFunc(asyncConvertToJSONable, o, pros, names, types, getUUIDfunction(), ret);
     return pros;
 }
 
@@ -715,7 +746,9 @@ function load(s: string, pbar = new TreeProgressBar(), names = new Map<string, a
     return convertFromJSONable(inObj, pbar, names, types, unresolvedRefs);
 }
 
-function asyncLoad(s: string, names = new Map<string, any | Saveable>(), types = getSaveableTypes(), unresolvedRefs = new Set<UnresolvedReference>(), cb: (p: AsyncTreeProcess<any | Saveable>) => void = (p: AsyncTreeProcess<any | Saveable>) => nop()): AsyncTreeProcess<any | Saveable> {
+function asyncLoad(s: string, cb: (p: AsyncTreeProcess<any | Saveable>) => void = (p: AsyncTreeProcess<any | Saveable>) => nop()
+    , names = new Map<string, any | Saveable>(), types = getSaveableTypes(), unresolvedRefs = new Set<UnresolvedReference>()
+): AsyncTreeProcess<any | Saveable> {
     const inObj = JSON.parse(s);
     const pros = new AsyncTreeProcess<any | Saveable>(new TreeProgressBar());
     const ret = function(o: any): void {
@@ -763,7 +796,7 @@ function download(filename: string, text: string) {
     //copyStringToClipboard(text);
     //alert("file copied to clipboard\nsize:" + text.length + "\n" + text.substr(0, 12) + "...");
 
-	/*
+    /*
     function callback(name: string): void {
         if (name == undefined) {
             return;
@@ -772,7 +805,7 @@ function download(filename: string, text: string) {
         console.log("saved");
     }
     dialog.showSaveDialog({ title: "save file", }, callback);
-	*/
+    */
 
 }
 

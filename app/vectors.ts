@@ -17,8 +17,6 @@ type Vector<T> = {
 
 
 
-
-
 function bound(x: number, l: 0, h: 255) {
     return Math.min(Math.max(x, l), h);
 }
@@ -115,7 +113,7 @@ type VarsType = {
     color?: Vector<Color>,
     fillColor?: Vector<Color>,
     width?: Vector<Scalar>,
-    alignment?: Vector<Scalar>
+    alignment?: Vector<Scalar>,
 };
 
 
@@ -286,6 +284,12 @@ class Point implements Vector<Point>, Saveable {
     norm2(): number {
         return (this.x * this.x + this.y * this.y + this.z * this.z) / this.w / this.w;
     }
+    euclidNorm2(): number {
+        return (this.x * this.x + this.y * this.y + this.z * this.z) / this.w / this.w;
+    }
+    euclidNorm(): number {
+        return Math.sqrt(this.euclidNorm2());
+    }
     add(other: Vector<Point>): Vector<Point> {
         return new Point(
             this.x * other.w + other.x * this.w,
@@ -309,6 +313,15 @@ class Point implements Vector<Point>, Saveable {
             this.y / this.w,
             this.z / this.w,
             1, this.s);
+    }
+    getX(): number {
+        return this.x / this.w;
+    }
+    getY(): number {
+        return this.y / this.w;
+    }
+    getZ(): number {
+        return this.z / this.w;
     }
     zero(): Vector<Point> {
         return new Point(0, 0, 0, 1);

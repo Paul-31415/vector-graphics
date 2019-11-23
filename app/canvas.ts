@@ -33,7 +33,7 @@ class Canvas implements Drawable, Acceptor<Drawable> {
         // super();
     }
     draw(t: Transform<Point, Point> | null): Graphic {
-        return new Graphic(this, this.drawOn(new PIXI.Graphics(), t, ));
+        return new Graphic(this, this.drawOn(new PIXI.Graphics(), t));
     }
     add(d: Drawable): Canvas {
         this.contents[this.contents.length] = d;

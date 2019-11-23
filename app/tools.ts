@@ -5,10 +5,11 @@ import { Point, Style, Color, Scalar, Vector, Angle2D } from "./vectors";
 import { Selected_br, SmartPen } from "./brush";
 import { Acceptor } from "./toolInterfaces";
 import { Saveable } from "./save";
+import { Transform } from "./Transform";
 
-//tools are sprites
 abstract class Tool extends PIXI.Sprite {
-
+    //attach(d: Document): void;
+    //detach(d: Document): void;
 }
 /*interface Tool {
     sprite: PIXI.Sprite;
@@ -101,6 +102,10 @@ class InteractionEventVector implements Vector<InteractionEventVector>, Saveable
 
 
 
+//standard toolset graphics
+//  const editCursor = new PIXI.Graphics();
+
+
 
 
 
@@ -111,6 +116,7 @@ interface Selectable {
     selectColor: Color;
 
 }
+
 class SelectTool extends Tool {
     selected: Selectable[];
 
@@ -128,8 +134,6 @@ class SelectTool extends Tool {
 
 
 }
-
-
 
 
 
@@ -174,7 +178,7 @@ abstract class DrawTool<T> extends Tool {
         }));
     }
     handlePress(e: PIXI.interaction.InteractionEvent): void {
-        //console.log(e);
+        console.log(e);
         this.begin(e);
         if (this.work.has(e)) {
             this.space.set(e, this.makePoint(e));
@@ -232,13 +236,16 @@ class BezTool extends DrawTool<Bezier<Point>> {
 
 
 class BSplineTool extends DrawTool<BSpline<Point>> {
-    constructor(public target: Acceptor<BSpline<Point>>, public degree: number, g: any) {
+    constructor(public target: Acceptor<BSpline<Point>>, public degree: number, g: any, public inputTransform: Transform<Point, Point> | null = null) {
         //this.sprite = new PIXI.Sprite();
         super(g);
     }
     begin(e: PIXI.interaction.InteractionEvent): void {
         e.stopPropagation();
-        const p = this.makePoint(e);
+        var p = this.makePoint(e);
+        if (this.inputTransform != null) {
+            p = (this.inputTransform as Transform<Point, Point>).apply(p);
+        }
         var a: Point[] = [];
         for (var i = 0; i < this.degree + 1; i++) {
             a[i] = p;
@@ -249,7 +256,11 @@ class BSplineTool extends DrawTool<BSpline<Point>> {
         this.target.accept(b);
     }
     cont(e: PIXI.interaction.InteractionEvent): void {
-        this.target.update((this.work.get(e) as BSpline<Point>).append(this.makePoint(e), null));
+        var p = this.makePoint(e);
+        if (this.inputTransform != null) {
+            p = (this.inputTransform as Transform<Point, Point>).apply(p);
+        }
+        this.target.update((this.work.get(e) as BSpline<Point>).append(p, null));
     }
     finish(e: PIXI.interaction.InteractionEvent): void {
         this.target.complete((this.work.get(e) as BSpline<Point>));

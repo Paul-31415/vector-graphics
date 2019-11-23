@@ -10,6 +10,29 @@ interface Transform<A, B> extends Saveable {
     unapply(b: B): A;
 }
 
+interface InvertableTransform<A, B> extends Transform<A, B> {
+
+}
+
+class InverseWrapper<A, B> implements InvertableTransform<A, B> {
+    constructor(public transform: InvertableTransform<B, A>) {
+        this.transform_linear = transform.transform_linear;
+    }
+    apply(a: A): B {
+        return this.transform.unapply(a);
+    } transform_linear: boolean;
+    transform_invertible = true;
+    inverse(): Transform<B, A> {
+        return this.transform;
+    }
+    unapply(b: B): A {
+        return this.transform.apply(b);
+    }
+    _saveName?: string;
+}
+
+
+
 @Saveable.register
 class CompoundTransform<A, B, C> implements Transform<A, C>{
     _saveName?: string;
@@ -31,8 +54,39 @@ class CompoundTransform<A, B, C> implements Transform<A, C>{
 }
 
 
+class Translation<V extends Vector<any>> implements InvertableTransform<V, V> {
+    apply(a: V): V {
+        return a.add(this.delta);
+    }
+    transform_linear = true;
+    transform_invertible = true;
+    inverse(): Transform<V, V> {
+        return new Translation<V>(this.delta.scale(-1));
+    }
+    unapply(b: V): V {
+        return b.add(this.delta.scale(-1));
+    }
+    _saveName?: string;
+    constructor(public delta: V) {
+    }
+}
 
-
+class Scale<V extends Vector<any>> implements Transform<V, V> {
+    apply(a: V): V {
+        return a.scale(this.scale);
+    }
+    transform_linear = true;
+    transform_invertible = true;
+    inverse(): Transform<V, V> {
+        return new Scale<V>(1 / this.scale);
+    }
+    unapply(b: V): V {
+        return b.scale(1 / this.scale);
+    }
+    _saveName?: string;
+    constructor(public scale = 1) {
+    }
+}
 
 
 
@@ -183,5 +237,7 @@ class PtTransform implements Transform<Point, Point>{
 
 
 export {
-    PtTransform, Transform
+    PtTransform, Transform, InvertableTransform, CompoundTransform, Translation, Scale
+
+    , InverseWrapper
 }

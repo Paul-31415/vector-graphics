@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { Pen, SmartPen, Brusher, BrushedCurve, Dots } from "./brush";
+import { Pen, SmartPen, Brusher, BrushedCurve, Dots, PerspPen, DebugPen } from "./brush";
 import { PtTransform, Transform } from "./transform";
 import { Bezier, WeightedVector, BSpline, WeightedAverageCurve, Spline } from "./bezier";
 import { Point, Style, Color, Scalar } from "./vectors";
@@ -8,7 +8,13 @@ import { Graphics } from "pixi.js";
 import { BezTool, BSplineTool } from "./tools";
 import { randomBytes } from "crypto";
 import { Acceptor } from "./toolInterfaces";
-import { save, load, download, asyncLoad, asyncSave, TreeProgressBar, AsyncTreeProcess, BiMap } from "./save";
+import { save, load, download, asyncLoad, asyncSave, TreeProgressBar, AsyncTreeProcess, BiMap, Saveable } from "./save";
+import { State } from "./state";
+import { Graphic } from "./drawable";
+import { PerspCam } from "./camera";
+import { Angle } from "./angle";
+import * as GPU from "gpu.js";
+const gpu = new GPU.GPU();
 
 
 let renderer = PIXI.autoDetectRenderer();
@@ -23,13 +29,72 @@ const app: PIXI.Application = new PIXI.Application(
     }
 );
 
+var saveDirectory = "./saves/";
+
+
+var state: State = new State();
+
+
 function color(r = 0, g = 0, b = 0): Style {
-    return new Style({ "color": new Color(r, g, b, 1), "width": new Scalar(40) });
+    return new Style({ "color": new Color(r, g, b, 1), "width": new Scalar(2) });
 }
 
-window.onresize = function(_event: UIEvent): void {
-    app.renderer.resize(window.innerWidth, window.innerHeight);
-};
+
+
+
+
+
+/*/hackey stuff now
+var DistFunc = function(pos: number[]): number {
+    return Math.sqrt(pos[0] ** 2 + pos[1] ** 2 + pos[2] ** 2) - 1;
+}
+
+
+var rayMarchingKernalMake = gpu.createKernel(function(a: number[][]) {
+    if (this.thread.z >= 3) {
+        const x = (a[1][0] + a[2][0] * this.thread.x + a[3][0] * this.thread.y);
+        const y = (a[1][1] + a[2][1] * this.thread.x + a[3][1] * this.thread.y);
+        const z = (a[1][2] + a[2][2] * this.thread.x + a[3][2] * this.thread.y);
+        const mag = Math.sqrt(x * x + y * y + z * z);
+        switch (this.thread.z) {
+            case 3:
+                return x / mag;
+            case 4:
+                return y / mag;
+            case 5:
+                return z / mag;
+        }
+    } else {
+        switch (this.thread.z) {
+            case 0:
+                return a[0][0];
+            case 1:
+                return a[0][1];
+            case 2:
+                return a[0][2];
+        }
+    }
+}).setOutput([512, 512, 6]);
+
+var rayMarchingKernal = gpu.createKernel(function(a: number[][][], steps: number) {
+    for (var r = 0; r < steps; r++) {
+        const dist = DistFunc(a[this.thread.x][this.thread.y]);
+        for (var i = 0; i < 3; i++) {
+            a[this.thread.x][this.thread.y][i] += a[this.thread.x][this.thread.y][i + 3] * dist;
+        }
+    }
+    return a[this.thread.x][this.thread.y][this.thread.z];
+}).setOutput([512, 512, 6]).setFunctions([DistFunc]);
+
+var rayMarchingKernalRender = gpu.createKernel(function(a: number[][][]) {
+    const dist = DistFunc(a[this.thread.x][this.thread.y]);
+    this.color(255 / dist, 255 / dist, 255 / dist, 1);
+}).setOutput([512, 512]).setGraphical(true);
+
+
+
+
+*///hackey stuff end
 
 
 document.body.appendChild(app.view);
@@ -49,415 +114,193 @@ class Id<A> implements Transform<A, A> {
 }
 var id = new Id<Point>();
 
-
-
-
-var cvs = new Canvas([]);
-
-var g = new PIXI.Graphics();
-app.stage.addChild(g);
-var tg = new PIXI.Graphics();
-
-tg.lineStyle(10, 0xffffff);
-tg.moveTo(-100, -100);
-tg.lineTo(100, -100);
-tg.lineTo(100, 100);
-tg.lineTo(-100, 100);
-tg.lineTo(-100, -100);
-
-const defaultStyle = new Style({
-    color: new Color(1, 1, 0),
-    width: new Scalar(1)
-})
-const style2 = new Style({
-    color: new Color(0, 1, 0),
-    width: new Scalar(.5)
-})
-
-const style2_5 = new Style({
-    color: new Color(0, .5, 0),
-    width: new Scalar(.5)
-})
-
-
-
-const polyS = [style2, style2_5];
-for (var i = 0; i < 30; i += 1) {
-    polyS[i] = new Style({
-        color: new Color(.7 - Math.sin(i) / 4, .7 + Math.sin(i) / 4, .7 + Math.cos(i / 1.1) / 4),
-        width: new Scalar(.5)
-    })
-
-
-}
-Color.Gamma = 0.3;
-const style3 = new Style({
-    color: new Color(0, 1, 1),
-    width: new Scalar(1)
-})
-const style3_5 = new Style({
-    color: new Color(0, 1, 1),
-    width: new Scalar(.5)
-})
-const style4 = new Style({
-    color: new Color(1, 0, 0),
-    width: new Scalar(1)
-})
-const style5 = new Style({
-    color: new Color(1, 0, 1),
-    width: new Scalar(1)
-})
-
-const refstyle = new Style({
-    color: new Color(1, 1, 1),
-    width: new Scalar(1)
-})
-
-var p = new Array<Point>();
-for (var i = 0; i < 8; i++) {
-    p[i] = new Point(200 + 160 * Math.sin(i / 2), 20 + 20 * i);
-}
-
-
-const testSpline = new BrushedCurve(new BSpline<Point>(p, 2, null), new Pen(defaultStyle), 128);
-
-const testSpline2 = new BrushedCurve(new BSpline<Point>([
-    new Point(100, 100),
-    new Point(200, 100, 0, 1, new Style({ width: new Scalar(4) })),
-    new WeightedVector<Point>(new Point(200, 200), .5),
-    new Point(100, 200),
-], 2, [0, 0, 0, 2, 4, 4, 4]), new Pen(defaultStyle), 128);
-
-const testSpline4 = new BrushedCurve(new BSpline<Point>([
-    new Point(300, 300), new Point(300, 300),
-    new Point(400, 400),
-    new Point(300, 400), new Point(300, 400),
-], 2, null), new Pen(defaultStyle), 5);
-
-class AnimBSpline implements Acceptor<BrushedCurve>{
-    s: BSpline<BSpline<Point>>;
-    constructor(d: number) {
-        this.s = new BSpline<BSpline<Point>>([], d, []);
+@Saveable.register
+class inversePerspTrns implements Transform<Point, Point>{
+    transform_linear = false;// affine
+    transform_invertible = true;
+    inverse(): Transform<Point, Point> {
+        throw new Error("no");
     }
-
-    accept(o: BrushedCurve): boolean {
-        this.s.append(o.c as BSpline<Point>, null, true);
-        return true;
-    } update(o: BrushedCurve): boolean {
-
-        return true;
+    unapply(a: Point): Point {
+        return this.t.apply(a).addEqDiscardOther(new Point(0, 0, -this.z)).scaleEq(1 / this.s);
     }
-    complete(o: BrushedCurve): boolean {
-
-        return true;
-    }
-
-    get(t: number): BSpline<Point> {
-        if (this.s.controlPoints.length > 0) {
-            return this.s.get(t);
-        } else {
-            return testSpline2.c as BSpline<Point>;
+    _saveName?: string;
+    constructor(public t: Transform<Point, Point>, public z = 1, public s = 1 / 512, public defW = 16 / 512) { }
+    apply(a: Point): Point {
+        const aa = a.copy();
+        aa.addEqDiscardOther(new Point(-window.innerWidth / 2, -window.innerHeight / 2));
+        aa.y *= -1;
+        const r = this.t.unapply(aa.scale(this.s).addEqDiscardOther(new Point(0, 0, this.z)));
+        if (r.s.vars.width == null) {
+            r.s.vars.width = new Scalar(this.defW);
         }
+        return r;
     }
-
 
 }
 
 
 
-
-var anim = new AnimBSpline(2);
-const o = 2;
-
-/*
-var b = new Brusher(anim, new Pen(defaultStyle), 128);
-for (var n = 0; n < 20; n++) {
-    const bs = new BSpline<Point>([], o, []);
-    for (var i = 0; i < 20; i++) {
-        bs.append(new Point(10 + i * 40, 10, 0, 1, new Style({ width: new Scalar((n == i) ? 10 : .5) })), null);
-    }
-    b.accept(bs);
-    b.complete(bs);
-}//*/
+var view = new PIXI.Container();
 
 
+//view.scale.set(state.viewPortScale, -state.viewPortScale);
 
+app.stage.addChild(view);
+const g = new PIXI.Graphics();
+g.moveTo(0, 0);
+g.beginFill(0);
+g.lineTo(0, 1000);
+g.lineTo(1000, 1000);
+g.lineTo(1000, 0);
+g.endFill();
+g.alpha = 0;
+const txt = renderer.generateTexture(g);
 
-
-var tool = new BSplineTool(new Brusher(anim, new Pen(defaultStyle), 128), o, renderer.generateTexture(tg));
-
-tool.spacing = 0;
-
-app.stage.addChild(tool);
-
-
-
-const testSpline3 = new BrushedCurve((testSpline2.c as BSpline<Point>).add(testSpline2.c as BSpline<Point>), new Pen(style4), 5);
-//*
-const s1 = (testSpline2.c as BSpline<Point>).copy();
-s1.makeShareKnot((testSpline.c as BSpline<Point>).copy());
-const testSpline5 = new BrushedCurve(s1, new Pen(style3), 5);
-// */
-
-const refSpline = new BrushedCurve(new WeightedAverageCurve(testSpline.c, testSpline2.c), new Pen(refstyle), 5)
-
-const testSpline6 = new BrushedCurve((testSpline2.c as BSpline<Point>).add((testSpline.c as BSpline<Point>).scale(0)), new Pen(style5), 5);
-
-
-
-const spl = new Spline<Point>([
-    new Point(10, 10),
-    new Point(210, 10),
-    new Point(210, 210),
-    new Point(10, 210),
-    new Point(10, 410),
-    new Point(210, 410),
-    new Point(310, 410),
-    new Point(410, 410),
-    new Point(410, 310),
-    new Point(310, 310),
-    new Point(310, 210),
-    new Point(410, 210),
-    new Point(410, 110),
-    new Point(310, 110),
-    new Point(310, 10),
-    new Point(410, 10),
-]);
-const s = save;
-const l = load;
-const sa = asyncSave;
-const la = asyncLoad;
-
-console.log(s(testSpline3.c));
-console.log(sa(testSpline3.c));
-debugger;
-
-
-const ptr = new PIXI.Text();
-
-
-const splp = new BrushedCurve(spl, new Dots(style3), 256);
-const splp2 = new BrushedCurve(spl, new Pen(style3_5), 256);
-
-cvs.add(splp);
-cvs.add(splp2);
-
-//cvs.add(testSpline);
-//cvs.add(testSpline2);
-//cvs.add(testSpline4);
-
-//cvs.add(testSpline5);
-//cvs.add(testSpline6);
-
-cvs.add(testSpline3);
-
-//cvs.add(refSpline);
-
-//s(cvs);
-debugger;
-
-var tb = new Bezier<BSpline<Point>>([(testSpline.c as BSpline<Point>), (testSpline2.c as BSpline<Point>)]);
-
-var ds: BrushedCurve[] = [/*testSpline, testSpline2, */testSpline3, /*testSpline5*/];
-
-var pen = new Pen(style2);
-
-
-
-var ptrt = 0.5;
-var pointer: PIXI.Graphics = new PIXI.Graphics();
-pointer.lineStyle(1, 0xffffff);
-ptr.style.fill = 0xffffff;
-pointer.drawCircle(0, 0, 4);
-ptr.x += 10;
-pointer.addChild(ptr);
-
-app.stage.addChild(pointer);
-
-var ki = 0;
+const br = new BSplineTool(new Brusher(state.canvas, new DebugPen(color(1, 1, 0)), 128), 3, txt, new inversePerspTrns(state.viewCam.val));
 
 
 
 
 
 
-var splA = spl.copy();
+
+app.stage.addChild(br);
+app.stage.addChild(view);
+
+window.onresize = function(_event: UIEvent): void {
+    app.renderer.resize(window.innerWidth, window.innerHeight);
+    view.x = window.innerWidth / 2;
+    view.y = window.innerHeight / 2;
+
+
+};
+
+
+
+state.attach(document);
+
+
+function renderView() {
+
+    /* const o = state.viewCam.val.position;
+     const forward = state.viewCam.val.rotation.apply(new Point(0, 0, 1));
+     const up = state.viewCam.val.rotation.apply(new Point(0, 1, 0)).scaleEq(1 / 256);
+     const sideways = state.viewCam.val.rotation.apply(new Point(1, 0, 0)).scaleEq(1 / 256);
+     forward.addEq(up.scale(256));
+     forward.addEq(sideways.scale(256));
+ 
+ 
+     const rays = rayMarchingKernal(rayMarchingKernalMake([[o.getX(), o.getY(), o.getZ()], [forward.getX(), forward.getY(), forward.getZ()], [up.getX(), up.getY(), up.getZ()], [sideways.getX(), sideways.getY(), sideways.getZ()]]), 10);
+ 
+     rayMarchingKernalRender(rays);
+ 
+ 
+     const marchCvs = rayMarchingKernalRender.canvas;
+     app.stage.addChild(marchCvs);
+     */
+    //const i = app.stage.getChildIndex(view);
+    //app.stage.removeChildAt(i);
+    //view = state.renderView(window);
+
+    //3d support:
+    view.removeChildren();
+    const s = state.renderView(window);
+    view.addChild(s);
+    //s.filters = [new PIXI.filters.BlurFilter()];
+    //state.rerenderView(view);
+    view.x = window.innerWidth / 2;
+    view.y = window.innerHeight / 2;
+
+
+    //app.stage.addChildAt(view, i);
+    barGraphics.scale.set(window.innerWidth, window.innerHeight);
+}
+
+
+
+
+const fpsMeter = new PIXI.Text("FPS:__");
+
+fpsMeter.y = 20;
+fpsMeter.x = 20;
+
+
+app.stage.addChild(fpsMeter);
+
+
 
 var time = 0;
-testSpline3.c = (testSpline.c as BSpline<Point>).scale(0).add(testSpline2.c as BSpline<Point>);//tb.get(1);
+var fps = 0;
+var fpsa = 0.1;
 
 
+var loading = false;
 
-// loadingbar
-const loadingBarG = new PIXI.Graphics();
-var bar = sa(testSpline3.c).progress;
+var bar: TreeProgressBar = null;
+const barGraphics = new PIXI.Graphics();
+app.stage.addChild(barGraphics);
 
-app.stage.addChild(loadingBarG);
-loadingBarG.x = 100;
-loadingBarG.y = 100;
+function setState(s: State) {
+    state.detach();
+    state = s;
+    state.attach(document);
 
-function gameLoop(delta: number): void {
-    g.clear();
-    for (var dsi = 0; dsi < ds.length; dsi++) {
-        for (var i = 1; i < (ds[dsi].c as BSpline<Point>).controlPoints.length; i++) {
-            pen.s = polyS[i % polyS.length];
-            pen.line(g, id, (ds[dsi].c as BSpline<Point>).controlPoints[i - 1].get(), (ds[dsi].c as BSpline<Point>).controlPoints[i].get());
-        }
-        //ds[dsi].res += 1;
-    }
-    cvs.drawOn(g, id);
-    //refSpline.res += 1;
-    time += delta / 480;
-    //splp.res += 1;
-
-    for (ki = 0; ki < splA.knots.length; ki++) {
-        for (var i = splA.knots[ki].cpsl + 1; i < splA.knots[ki].cpsh; i++) {
-            pen.s = polyS[i % polyS.length];
-            pen.line(g, id, splA.controlPoints[i - 1].get(), splA.controlPoints[i].get());
-            g.drawCircle(splA.controlPoints[i].get().x, splA.controlPoints[i].get().y, i - splA.knots[ki].cpsl);
-        }
-    }
-
-    loadingBarG.clear();
-    loadingBarG.lineStyle(2, 0xff0000);
-    loadingBarG.moveTo(0, - 3);
-    loadingBarG.lineTo(100 * bar.getProgress(), y * 3);
-    for (var y = 0; y < bar.denominators.length; y++) {
-        loadingBarG.moveTo(0, y * 3);
-        loadingBarG.lineTo(100 * bar.numerators[y] / bar.denominators[y], y * 3);
-    }
-
-
-    s;
-    l;
-    sa;
-    la;
-    //    debugger;
-
-
-    const ptrr = splA.get(ptrt);
-    pointer.x = ptrr.x;
-    pointer.y = ptrr.y;
-    ptr.text = ptrt + "";
-    testSpline3.c = anim.get(time % 1);//tb.get((refSpline.c as WeightedAverageCurve<Point>).a);
+    br.inputTransform = state.viewCam.val;
+    (br.target as Brusher).dest = state.canvas;
 }
 
-app.ticker.add(gameLoop);
 
 
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyW") {
-        //tool.degree += 1;
-        debugger;
-        (refSpline.c as WeightedAverageCurve<Point>).a += 0.01;
-        ptrt += 0.01;
+import * as fs from 'fs';
+try {
+
+    var data = fs.readFileSync(saveDirectory + 'input.json', "utf8");
+    const cb = function(d: any) {
+        setState((d as AsyncTreeProcess<any>).result as State);
     }
-});
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyS") {
-        //tool.degree = Math.max(1, tool.degree - 1);
-        debugger;
-        (refSpline.c as WeightedAverageCurve<Point>).a -= 0.01;
-        ptrt -= 0.01;
+    asyncLoad(data, cb);
+} catch (e) {
+    console.log("file not loaded");
+    console.log(e);
+}
+
+
+
+function physLoop(delta: number): void {
+    if (loading) {
+        barGraphics.clear();
+        const p = bar.getProgress();
+        barGraphics.lineStyle(1 / 32, 0x010000 * Math.floor((1 - p) * 0xff) + 0x000100 * Math.floor(p * 0xff), 1, 0.5);
+        barGraphics.moveTo(0, 0);
+        barGraphics.lineTo(p, 0);
+        barGraphics.lineStyle(1 / 64, 0x880000, 1, 0.5);
+        for (var i = 0; i < bar.denominators.length; i++) {
+            barGraphics.moveTo(0, (i + 1) / 32);
+            barGraphics.lineTo(bar.numerators[i] / bar.denominators[i], (i + 1) / 32);
+        }
+
+    } else {
+        renderView();
+        time += delta;
+        fps = fps * (1 - fpsa) + (60 / delta) * fpsa;
+        fpsMeter.text = "FPS:" + fps;
+        state.physLoop(delta / 60);
     }
-});
-
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyP") {
-        ki = (ki + 1) % (splA.knots.length - 1);
-    }
-});
-
-var splc = 1;
-
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyU") {
-        debugger;
-        splc += 1;
-        splA = spl.copy().insertKnot(ptrt, splc);
-        splp.c = splA;
-    }
-});
-
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyJ") {
-        splc -= 1;
-        splA = spl.copy().insertKnot(ptrt, splc);
-        splp.c = splA;
-    }
-});
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyI") {
-        splA = spl.copy().insertKnot(ptrt, splc);
-        splp.c = splA;
-    }
-});
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyK") {
-        splA = splA.insertKnot(ptrt, splc);
-        splp.c = splA;
-    }
-});
-
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyO") {
-        splA = splA.modifyKnot(splA.getKnotIndex(ptrt), splA.getKnotAtT(ptrt).continuity - 1);
-        splp.c = splA;
-    }
-});
-
-
-
+}
+app.ticker.add(physLoop);
 
 
 
 
 document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyC") {
-        const b = (testSpline2.c as BSpline<Point>);
-        b.insertKnot(0);//Unnormed(b.knot.n[0] - 1);//(testSpline2.c as BSpline<Point>).insertKnot(Math.random());
+
+    console.log(ke);
+    if (ke.code == "Escape") {
+        state.freecam = !state.freecam;
     }
 });
 
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyV") {
-        const b = (testSpline2.c as BSpline<Point>);
-        b.insertKnot(1);//Unnormed(b.knot.n[0] - 1);//(testSpline2.c as BSpline<Point>).insertKnot(Math.random());
-    }
-});
-
-
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyQ") {
-        debugger;
-        testSpline3.c = (testSpline.c as BSpline<Point>).scale(0).add(testSpline2.c as BSpline<Point>);//tb.get(1);
-    }
-});
-
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyA") {
-        debugger;
-        testSpline3.c = (testSpline2.c as BSpline<Point>).add((testSpline2.c as BSpline<Point>).scale(0));//tb.get(1);
-    }
-});
-
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyR") {
-        debugger;
-        const s1 = (testSpline.c as BSpline<Point>).copy();
-        s1.makeShareKnot((testSpline2.c as BSpline<Point>).copy());
-        testSpline5.c = s1;
-    }
-});
-
-document.addEventListener("keydown", (ke: KeyboardEvent) => {
-    if (ke.code == "KeyF") {
-        debugger;
-        const s1 = (testSpline.c as BSpline<Point>).copy();
-        (testSpline2.c as BSpline<Point>).copy().makeShareKnot(s1);
-        testSpline5.c = s1;
-    }
-});
 
 
 
@@ -465,10 +308,17 @@ document.addEventListener("keydown", (ke: KeyboardEvent) => {
 document.addEventListener("keydown", (ke: KeyboardEvent) => {
     if (ke.code == "KeyS" && ke.metaKey) { //command-s
         const cb = function(o: AsyncTreeProcess<string>) {
-            download("save.json", o.result);
+            download(saveDirectory + state._saveName, o.result);
+            loading = false;
+            bar = null;
+            barGraphics.clear();
         }
-
-        bar = asyncSave(cvs, new BiMap<string, any>(), cb).progress;
+        loading = true;
+        const pros = asyncSave(state, new BiMap<string, any>(), cb);
+        //pop up a loading screen/dialogue with a progress bar and cancel button etc.
+        //todo
+        bar = pros.progress;
+        console.log(pros);
 
     }
 });
