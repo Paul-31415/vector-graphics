@@ -6,6 +6,131 @@ import { Point } from "./vectors";
 import { Angle, AngleVec } from "./angle";
 
 
+
+
+
+class UI {
+
+    listeners: any;
+
+    private boundListeners: any;
+    constructor() {
+        this.listeners = {}
+        this.boundListeners = {}
+    }
+
+    document: Document
+
+    private bindListener(key: string): (e: any) => void {
+        const f = function(e: any): void {
+            for (var el of this[key]) {
+                if (!el(e)) {
+                    return;
+                }
+            }
+        }.bind(this);
+        this.boundListeners[key] = f;
+        return f;
+    }
+
+    attach(document: Document) {
+
+        this.document = document;
+        for (var e in this.listeners) {
+            document.addEventListener(e, this.bindListener(e));
+        }
+    }
+    detach(): Document {
+        for (var e in this.boundListeners) {
+            this.document.removeEventListener(e, this.boundListeners[e]);
+        }
+        this.boundListeners = {}
+        const tmp = this.document;
+        this.document = null;
+        return tmp;
+    }
+
+    addListener(t: string, listener: (e: any) => boolean): number {
+        if (this.document != null) {
+            if (this.listeners[t] == null) {
+                this.listeners[t] = [listener];
+                this.document.addEventListener(t, this.bindListener(t));
+            } else {
+                this.listeners[t].append(listener);
+            }
+        } else {
+            if (this.listeners[t] == null) {
+                this.listeners[t] = [listener];
+            } else {
+                this.listeners[t].append(listener);
+            }
+        }
+        return this.listeners[t].length - 1;
+    }
+
+    removeListenerAt(t: string, key: number): (e: any) => boolean {
+        if (this.listeners[t] != null) {
+            var l = this.listeners[t][key];
+            delete this.listeners[t][key];
+            return l;
+        }
+        return null;
+    }
+
+
+}
+
+
+//simple window system currys
+class WindowPane {
+
+}
+
+class TextBox {
+
+}
+
+
+
+
+
+
+//need to make enough ui to build the rest of the ui
+//make macro lang good enough to define new vector types.
+
+
+
+
+
+abstract class inputWanter {
+
+}
+
+class booleanWanter extends inputWanter {
+
+}
+class scalarWanter extends inputWanter {
+
+}
+
+class vectorWanter extends inputWanter {
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // don't edit anything directly, only edit through the state.
 
 import { State } from "./state";
@@ -73,10 +198,6 @@ class VirtualMouse implements Drawable {
 
 
 
-
-
-
-
 }
 
 
@@ -117,5 +238,5 @@ function button(d: Drawable, t: Transform<Point, Point> | null): Graphic {
 */
 
 export {
-    VirtualMouse
+    VirtualMouse, UI
 }
