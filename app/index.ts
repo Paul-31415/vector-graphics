@@ -1,7 +1,8 @@
 import * as PIXI from "pixi.js";
 import * as THREE from "three";
-import { camelize } from "../node_modules/tslint/lib/utils";
 import { Point, Quaternion } from "./vector";
+import { Bezier, NUBS, Curve } from "./curve";
+
 
 
 //from getting started in the docs
@@ -10,16 +11,60 @@ let three_scene = new THREE.Scene();
 let three_camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.1, 1000);
 let three_renderer = new THREE.WebGLRenderer({ alpha: true });
 three_renderer.setSize(window.innerWidth, window.innerHeight);
-
+three_renderer.setPixelRatio(window.devicePixelRatio ? window.devicePixelRatio : 1);
 
 
 //cube from docs
 var geometry = new THREE.BoxGeometry(1, 1, 1);
-var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+var material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
 var cube = new THREE.Mesh(geometry, material);
 three_scene.add(cube);
+three_scene.add(new THREE.AmbientLight(0x404040));
+const l = new THREE.DirectionalLight(0xffffff, .5);
+l.position.x = .2;
+l.position.z = .1;
+three_scene.add(l);
 
 three_camera.position.z = 5;
+
+
+//spline experiment
+for (var line = 0; line < 200; line += 1) {
+    var c: Curve<Point> = new Bezier<Point>([new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5),
+    new Point(Math.random() * 5, Math.random() * 5, Math.random() * 5)
+    ])
+
+
+    var points: THREE.Vector3[] = [];
+    let n = 1000;
+    for (var i = 0; i < n; i += 1) {
+        points.push(new THREE.Vector3(...c.get(i / n).xyz));
+    }
+    var g = new THREE.BufferGeometry().setFromPoints(points);
+
+    var clr = Math.floor(Math.random() * 0xffffff);
+    var m = new THREE.LineBasicMaterial({ color: clr });
+
+    // Create the final object to add to the scene
+    var splineObject = new THREE.Line(g, m);
+    three_scene.add(splineObject);
+}
+
+
+
+
+
+
 
 
 

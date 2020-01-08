@@ -231,7 +231,7 @@ class NUBS<T extends Vector<any>> extends Vector<NUBS<T>> implements Curve<T>, S
             x = py_mod(x, this.knots[this.knots.length - 1]);
         }
         //calc weights
-        const i = this.getKnotOfInterest(x) - 1;
+        const i = this.getKnotOfInterest(x) + this.degree;
 
         const w = [1];//b(i=t,0,x)
         for (var k = 1; k < this.degree; k += 1) {
@@ -374,7 +374,7 @@ class Bezier<T extends Vector<any>> extends Vector<Bezier<T>> implements Curve<T
         );
         var bin = this.order;
         for (var i = 1; i < this.points.length; i++) {
-            res.addEqDiscardOther(this.points[i].scale(
+            res.addDEq(this.points[i].scale(
                 bin *
                 Math.pow((1 - t), this.order - i) *
                 Math.pow(t, i)
@@ -585,3 +585,10 @@ class Spline<T extends Vector<any>> extends Vector<Spline<T>> implements Curve<T
     }
 }
 */
+
+export {
+    Curve,
+    Bezier,
+    NUBS,
+    NURBS
+}
