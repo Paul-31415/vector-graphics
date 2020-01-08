@@ -1,7 +1,0 @@
-import * as PIXI from "pixi.js";
-
-interface Camera {
-    image(Drawable):
-
-
-
