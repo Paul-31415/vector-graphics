@@ -762,7 +762,7 @@ function asyncLoad(s: string, cb: (p: AsyncTreeProcess<any | Saveable>) => void 
 
 
 import { dialog } from "electron";
-import * as fs from 'fs';
+//import * as fs from 'fs';
 import { fail } from "assert";
 
 function copyStringToClipboard(str: string): void {
@@ -787,16 +787,17 @@ function copyStringToClipboard(str: string): void {
 
 
 function download(filename: string, text: string) {
+	/*
     fs.writeFile(filename, text, function(err: Error) {
         if (err) {
             return console.error(err);
         }
         console.log("File created!");
-    });
+    });*/
     //copyStringToClipboard(text);
     //alert("file copied to clipboard\nsize:" + text.length + "\n" + text.substr(0, 12) + "...");
 
-    /*
+    /*/
     function callback(name: string): void {
         if (name == undefined) {
             return;
@@ -805,7 +806,7 @@ function download(filename: string, text: string) {
         console.log("saved");
     }
     dialog.showSaveDialog({ title: "save file", }, callback);
-    */
+    //*/
 
 }
 

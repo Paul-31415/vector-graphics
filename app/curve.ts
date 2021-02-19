@@ -1,6 +1,6 @@
 import { Saveable } from "./save";
 import { Vector } from "./vector";
-
+import * as THREE from "three";
 interface Curve<T> {
     get(t: number): T;
     derivative(): Curve<T>;
@@ -10,6 +10,8 @@ interface Curve<T> {
 function py_mod(n: number, m = 1): number {
     return ((n % m) + m) % m;
 }
+
+
 
 @Saveable.register
 class NURBS<T extends Vector<any>> extends Vector<NURBS<T>> implements Curve<T>, Saveable {
@@ -358,10 +360,45 @@ class Bezier<T extends Vector<any>> extends Vector<Bezier<T>> implements Curve<T
         }
         return r;
     }
-    add(o: Bezier<T>): Bezier<T> {
-        throw o;
+    scaleEq(s: number): Bezier<T> {
+        for (var i in this.points) {
+            this.points[i].scaleEq(s);
+        }
+        return this;
     }
-
+    add(o: Bezier<T>): Bezier<T> {
+        return this.copy().addEq(o);
+    }
+    addEq(o: Bezier<T>): Bezier<T> {
+        if (o.degree > this.degree) {
+            return this.incOrderEq().addEq(o);
+        } else {
+            if (o.degree < this.degree) {
+                return this.addDEq(o.copy().incOrderEq());
+            }
+            else {
+                for (var i = 0; i < this.degree; i++) {
+                    this.points[i].addEq(o.points[i]);
+                }
+                return this;
+            }
+        }
+    }
+    addDEq(o: Bezier<T>): Bezier<T> {
+        if (o.degree > this.degree) {
+            return this.incOrderEq().addDEq(o);
+        } else {
+            if (o.degree < this.degree) {
+                return this.addDEq(o.incOrderEq());
+            }
+            else {
+                for (var i = 0; i < this.degree; i++) {
+                    this.points[i].addDEq(o.points[i]);
+                }
+                return this;
+            }
+        }
+    }
 
     //::::Curve::::
     get(t: number): T {
@@ -462,7 +499,7 @@ class Bezier<T extends Vector<any>> extends Vector<Bezier<T>> implements Curve<T
         const k = n + 1;
         this.points[k] = this.points[n].copy();
         for (var i = n; i >= 1; i--) {
-            this.points[i].scaleEq((n - i + 1) / (i + 1)).addEq(this.points[i - 1].scaleEq(i / k));
+            this.points[i].scaleEq((n - i + 1) / k).addDEq(this.points[i - 1].scale(i / k));
         }
         return this;
     }
