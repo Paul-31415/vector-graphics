@@ -1,3 +1,0 @@
-positions and stuff (rotation, scale)
-will be stored in affine matrix form?
-

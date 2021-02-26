@@ -11,7 +11,8 @@
     "build": "npm run build:gulp -s",
     "web": "npm run build:web",
     "start": "electron .",
-    "start:web": "node build/server.js"
+    "start:web": "node build/server.js",
+    "test": "ts-node node_modules/jasmine/bin/jasmine app/**/*_test.ts"
   },
   "author": "",
   "license": "MIT",
@@ -33,6 +34,7 @@
     "pixi.js": "^4.8.8",
     "through2": "^2.0.3",
     "ts-loader": "^2.0.3",
+    "ts-node": "^9.1.1",
     "tslint": "^4.5.1",
     "tslint-eslint-rules": "^3.5.1",
     "typescript": "^3.7.4",
@@ -42,11 +44,14 @@
     "webpack-stream": "^5.2.1"
   },
   "dependencies": {
+    "@types/jasmine": "^3.6.4",
     "@types/offscreencanvas": "^2019.6.1",
     "@types/three": "^0.103.2",
     "canvas": "^2.6.1",
     "fs": "0.0.1-security",
     "gpu.js": "git+https://github.com/gpujs/gpu.js.git",
+    "jasmine": "^3.6.4",
+    "jasmine-ts": "^0.3.0",
     "offscreen-canvas": "^0.1.1",
     "quaternion": "^1.1.0",
     "three": "^0.112.1",
