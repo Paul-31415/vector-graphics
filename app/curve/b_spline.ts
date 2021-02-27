@@ -62,11 +62,11 @@ export class B_Spline<T extends Vector<any>> extends Vector<B_Spline<T>> impleme
         return N;
     }
     // https://pages.mtu.edu/~shene/COURSES/cs3621/NOTES/spline/B-spline/de-Boor.html
-    DeBoor_coef_triangle(k: number, p: number, t: number, h: number): NDVector[][] {
+    /*DeBoor_coef_triangle(k: number, p: number, t: number, h: number): NDVector[][] {
         const res: NDVector[][] = [Array<NDVector>(p + 1).fill(new NDVector([1]))];
         // P_i,0 is res[0][i-k]
         for (let r = 1; r <= h; r++) {
-            for (let i = k - p + r; i <= k/*-s*/; i++) {
+            for (let i = k - p + r; i <= k/*-s* /; i++) {
                 const an = (t - this.knot_vec[i]);
                 const ad = (this.knot_vec[i + p - r + 1] - this.knot_vec[i]);
                 const air = (ad != 0) ? an / ad : (an >= 0 ? 1 : 0);
@@ -75,26 +75,44 @@ export class B_Spline<T extends Vector<any>> extends Vector<B_Spline<T>> impleme
             }
         }
         return res;
-    }
+    }*/
     // https://pages.mtu.edu/~shene/COURSES/cs3621/NOTES/spline/B-spline/multiple-time.html
     insert_knot(t: number, times: number = 1) {
         const region = ascending_search_right(this.knot_vec, t);
         const o = this.order;
-        const k = Math.max(o, Math.min(this.knot_vec.length - o, region)) - 1;
+        const k = Math.max(o, Math.min(this.knot_vec.length - o, region));
         //can use basis_ITS for this
         // but that's less efficient
         // so I make a seperate func
-        const tri = this.DeBoor_coef_triangle(k - 1, o - 1, t, Math.min(o - 1, times));
+        //const tri = this.DeBoor_coef_triangle(k - 1, o - 1, t, Math.min(o - 1, times));
+        const tri = this.support_net(t, times);
+        const res: T[] = Array<T>(times + o - 2);
+        for (let i = 1; i < tri.length - 1; i++) {
+            res[i - 1] = tri[i][0];
+            res[res.length - i] = tri[i][tri[i].length - 1];
+        }
+        if (tri[tri.length - 1].length === 1) {
+            const p = tri[tri.length - 1][0];
+            for (let i = tri.length - 2; i <= res.length - tri.length + 1; i++) {
+                res[i] = p;
+            }
+        } else {
+            for (let i = 0; i < tri[tri.length - 1].length; i++) {
+                res[i + tri.length - 2] = tri[tri.length - 1][i];
+            }
+        }
+        const kres = Array<number>(times).fill(t);
 
-        throw new Error("Method not implemented.");
+        this.control_points.splice(k - o + 1, o - 2, ...res);
+        this.knot_vec.splice(region, 0, ...kres);
     }
-    CDB_full_triangle(k: number, p: number, t: number): T[][] {
+    CDB_triangle(k: number, p: number, t: number, h = Infinity): T[][] {
         const res: T[][] = [];
         res[0] = Array<T>(p + 1);
         for (let i = 0; i < res[0].length; i++) {
             res[0][i] = this.control_points[k + i];
         }
-        for (let r = 1; r <= p; r++) {
+        for (let r = 1; r <= p && r <= h; r++) {
             res[r] = Array<T>(p + 1 - r);
             for (let i = 0; i < res[r].length; i++) {
                 const bi = k + i + r;
@@ -107,13 +125,16 @@ export class B_Spline<T extends Vector<any>> extends Vector<B_Spline<T>> impleme
         }
         return res;
     }
-    support_net(t: number): T[][] {
+    support_net(t: number, h = Infinity): T[][] {
         const o = this.order;
         const region = ascending_search_right(this.knot_vec, t);
         const k = Math.max(o, Math.min(this.knot_vec.length - o, region));
-        return this.CDB_full_triangle(k - o, o - 1, t);
+        return this.CDB_triangle(k - o, o - 1, t, h);
     }
-
+    effected_region(k: number): { start: number, end: number } {
+        const p = this.order - 1;
+        return { start: this.knot_vec[Math.max(0, k - p)], end: this.knot_vec[Math.min(this.knot_vec.length, k + p + 1)] };
+    }
 
     vec_copy(): B_Spline<T> {
         return new B_Spline<T>([...this.control_points], [...this.knot_vec]);
