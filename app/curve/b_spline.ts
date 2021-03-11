@@ -284,7 +284,7 @@ export class B_Spline<T extends Vector<any>> extends Vector<B_Spline<T>> impleme
         const kn: number[] = new Array<number>(this.knot_vec.length + 2);
         kn[0] = tk.l;
         kn[kn.length - 1] = tk.h;
-        for (let i = 0; i < kn.length; i++) {
+        for (let i = 0; i < this.knot_vec.length; i++) {
             kn[i + 1] = this.knot_vec[i];
         }
         const p = this.order;
