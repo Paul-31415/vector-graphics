@@ -21,6 +21,11 @@ export abstract class Vector<T extends Vector<T>>{
     abstract vec_copy(): T; //shallow copy of vector
     abstract vec_set(other: T): T;//sets this vector to another vector
 
+    vec_zero(): T {
+        return this.vec_scale(0);
+    }
+
+
     //optional optimization stuff
     vec_addEq(other: T): T {
         return this.vec_set(this.vec_add(other));

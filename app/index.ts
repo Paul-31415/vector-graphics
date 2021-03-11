@@ -79,13 +79,27 @@ function uniform_ended_knot_vec(len: number, o: number): number[] {
 
 const iter = 3;
 const testSpline = new B_Spline<Point2d>(
-    parray_add_scale(hilbert_curve(iter), 400, point2d(10, 10)),
-    uniform_ended_knot_vec(1 << (2 * iter), 4)
+    parray_add_scale(hilbert_curve(iter), 400, point2d(-200, -200)),
+    uniform_ended_knot_vec(1 << (2 * iter), 5)
 );
+testSpline.knot_vec[22] = testSpline.knot_vec[21];
 
+testSpline.knot_vec[36] = testSpline.knot_vec[35];
+testSpline.knot_vec[37] = testSpline.knot_vec[36];
 
-function plotCurve(c: Curve<Point2d>, res: number): PIXI.Graphics {
-    const cur = new PIXI.Graphics();
+testSpline.knot_vec[46] = testSpline.knot_vec[45];
+testSpline.knot_vec[47] = testSpline.knot_vec[45];
+testSpline.knot_vec[48] = testSpline.knot_vec[45];
+
+testSpline.knot_vec[52] = testSpline.knot_vec[51];
+testSpline.knot_vec[53] = testSpline.knot_vec[51];
+testSpline.knot_vec[54] = testSpline.knot_vec[51];
+testSpline.knot_vec[55] = testSpline.knot_vec[51];
+
+function plotCurve(c: Curve<Point2d>, res: number, cur: PIXI.Graphics = undefined): PIXI.Graphics {
+    if (!cur) {
+        cur = new PIXI.Graphics();
+    }
     cur.lineStyle(2, 0xff4400);
     const p = c.curve_eval(0).p;
     cur.moveTo(p.x, p.y);
@@ -99,11 +113,26 @@ function plotCurve(c: Curve<Point2d>, res: number): PIXI.Graphics {
 let t = .5;
 const circ = new PIXI.Graphics();
 circ.beginFill(0xffff00).drawCircle(0, 0, 16).endFill();
-const cur = plotCurve(testSpline, 1 << 13)
+const cur = new PIXI.Graphics();
+function draw() {
+    cur.clear();
+    plotCurve(testSpline, 1 << 13, cur);
+    for (let i = 0; i < testSpline.knot_vec.length; i++) {
+        const p = testSpline.curve_eval(testSpline.knot_vec[i]);
+        cur.moveTo(p.x, p.y);
+        cur.lineStyle(.5, 0x0088ff + ((i ^ (i >> 1)) << 17));
+        cur.drawCircle(p.x, p.y, i / 2);
+    }
+}
+draw();
 app.stage.addChild(cur);
 app.stage.addChild(circ);
+cur.position.x = 300;
+cur.position.y = 300;
+circ.position.x = 300;
+circ.position.y = 300;
 function physLoop(delta: number): void {
-    t += 1 / (1 << 13);
+    t += 1 / (1 << 11);
     const p = testSpline.curve_eval(t % 1).p;
     //circ.x = p.x; circ.y = p.y;
     //draw deco
@@ -113,7 +142,7 @@ function physLoop(delta: number): void {
         circ.moveTo(p.x, p.y);
         circ.beginFill(0xffff00).drawCircle(p.x, p.y, 8).endFill();
         //draw support pyramid
-        if (false) {
+        if (true) {
             const pyr = testSpline.support_net(t % 1);
             for (let i = 0; i < pyr.length; i++) {
                 const colr = 0x808080 + (0x7f7f7f & (Math.sin(i + 1) * 0xffffff));
@@ -129,9 +158,9 @@ function physLoop(delta: number): void {
             }
         }
 
-        //draw knot inserted curve
+        /*draw knot inserted curve
         const cv = testSpline.vec_copy();
-        cv.insert_knot(t % 1, 1);
+        cv.insert_knot(t % 1, 64);
         circ.lineStyle(.5, 0x8000ff);
         const p0 = cv.curve_eval(0).p;
         circ.moveTo(p0.x, p0.y);
@@ -150,7 +179,71 @@ function physLoop(delta: number): void {
                 circ.beginFill(0xc040ff).drawCircle(p.x, p.y, 1).endFill();
                 circ.moveTo(p.x, p.y);
             }
+        }/* /
+
+        //draw bisected curve
+        const cb = testSpline.bisect(t % 1);
+
+        for (let i = 0; i < 2; i++) {
+            const cv = [cb.low, cb.high][i]
+            circ.lineStyle(.5, [0x8000ff, 0xff0080][i]);
+            const p0 = cv.curve_eval(0).p;
+            circ.moveTo(p0.x, p0.y);
+            for (let r = 1 / 512; r <= 1; r += 1 / 512) {
+                const p = cv.curve_eval(r);
+                circ.lineTo(p.x, p.y);
+            }
+            {
+                const p = cv.control_points[0];
+                circ.lineStyle(.5, [0xc040ff, 0xff40c0][i]);
+                circ.beginFill([0xc040ff, 0xff40c0][i]).drawCircle(p.x, p.y, 1).endFill();
+                circ.moveTo(p.x, p.y);
+                for (let i = 1; i < cv.control_points.length; i++) {
+                    const p = cv.control_points[i];
+                    circ.lineTo(p.x, p.y);
+                    circ.beginFill([0xc040ff, 0xff40c0][i]).drawCircle(p.x, p.y, 1).endFill();
+                    circ.moveTo(p.x, p.y);
+                }
+            }
         }
+		*/
+
+
+        //draw hodograph
+        const der = testSpline.curve_derivative();
+        const hod = der.curve.vec_scaleEq(.01);
+
+        const pc = hod.control_points[0];
+        circ.moveTo(hod.curve_eval(0).x + p.x, hod.curve_eval(0).y + p.y);
+        circ.lineStyle(1, 0x00ffff);
+        for (let t = 0; t < 1; t += 1 / (1 << 10)) {
+            const pc = hod.curve_eval(t);
+            circ.lineTo(pc.x + p.x, pc.y + p.y);
+        }
+        circ.lineStyle(.5, 0xc040ff);
+        circ.beginFill(0xc040ff).drawCircle(pc.x + p.x, pc.y + p.y, 1).endFill();
+        circ.moveTo(pc.x + p.x, pc.y + p.y);
+        for (let i = 1; i < hod.control_points.length; i++) {
+            const pc = hod.control_points[i];
+            circ.lineTo(pc.x + p.x, pc.y + p.y);
+            circ.beginFill(0xc040ff).drawCircle(pc.x + p.x, pc.y + p.y, 1).endFill();
+            circ.moveTo(pc.x + p.x, pc.y + p.y);
+        }
+        const pd = hod.curve_eval(t % 1);
+        circ.beginFill(0xffff00).drawCircle(pd.x + p.x, pd.y + p.y, 3).endFill();
+
+        //integrate hodograph 
+        const ig = hod.curve_integral(der.trimmed_knots);
+        {
+            const p = ig.curve_eval(0);
+            circ.moveTo(p.x, p.y);
+            circ.lineStyle(1, 0x00ff00);
+            for (let t = 1 / (1 << 10); t <= 1; t += 1 / (1 << 10)) {
+                const p = ig.curve_eval(0);
+                circ.lineTo(p.x, p.y);
+            }
+        }
+
     }
     cur;
 }
