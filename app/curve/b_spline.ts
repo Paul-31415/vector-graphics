@@ -27,8 +27,14 @@ export class B_Spline<T extends Vector<any>> extends Vector<B_Spline<T>> impleme
     }
     basis(t: number): { start: number, weights: number[] } {
         const o = this.order;
-        const region = ascending_search_right(this.knot_vec, t);
+        let region = ascending_search_right(this.knot_vec, t);
+        //this loop prevents unpredictable returning of kronecker deltas in the curve
+        while (region < this.knot_vec.length && float_near(this.knot_vec[region], t, B_Spline.EPSILON)) {
+            region++;
+        }//curve regions are [low,high)
+
         //o is how many control points are needed to calculate
+
         const k = Math.max(o, Math.min(this.knot_vec.length - o, region));
         const bweights = this.basis_ITS(k - 1, o - 1, t);
         //return { start: region - p, weights: bweights };
@@ -96,8 +102,11 @@ export class B_Spline<T extends Vector<any>> extends Vector<B_Spline<T>> impleme
         }
         if (tri[tri.length - 1].length === 1) {
             const p = tri[tri.length - 1][0];
-            for (let i = tri.length - 2; i <= res.length - tri.length + 1; i++) {
-                res[i] = p;
+            res[tri.length - 2] = p;
+            res[res.length - tri.length + 1] = p;
+            const z = p.vec_zero();//dont put kronecker deltas where there shouldn't be
+            for (let i = tri.length - 1; i < res.length - tri.length + 1; i++) {
+                res[i] = z;
             }
         } else {
             for (let i = 0; i < tri[tri.length - 1].length; i++) {
@@ -168,20 +177,58 @@ export class B_Spline<T extends Vector<any>> extends Vector<B_Spline<T>> impleme
     }
 
     degree_elevate_and_insert_knots(m: number, t: number[], times: number[]): B_Spline<T> {
-        const konsts = Array<{ l: number, h: number, c: T }>(this.order);
+        const konsts = Array<{ l: number, h: number, c: T }>(this.order - 1);
         let curv: B_Spline<T> = this;
-        for (let i = 0; i < this.order; i++) {
+        for (let i = 0; i < konsts.length; i++) {
             const r = curv.curve_derivative();
             konsts[i] = r.trimmed_knots;
             curv = r.curve;
         }
-        //degree elevate the zero curve
-        //by inserting knots at every knot
-        //(or by taking further derivatives?)
+        //degree elevate the constant curve
+        const kre = curv.rle_knot_vec();
+        const rp = new Array<T>(curv.control_points.length + m * (kre.u.length - 1));
+        const rk = new Array<number>(curv.knot_vec.length + m * (kre.u.length));
+        let ri = 0, si = 0;
+        for (let i = 0; i < kre.u.length - 1; i++) {
+            for (let j = 0; j < kre.z[i]; j++) {
+                rp[ri] = curv.control_points[si];
+                rk[ri] = curv.knot_vec[si];
+                ri++;
+                si++;
+            }
+            for (let j = 0; j < m; j++) {
+                rp[ri] = rp[ri - 1];
+                rk[ri] = rk[ri - 1];
+                ri++;
+            }
+        }
+        for (let j = 0; j < kre.z[kre.z.length - 1] - 1; j++) {
+            rp[ri] = curv.control_points[si];
+            rk[ri] = curv.knot_vec[si];
+            ri++;
+            si++;
+        }
+        rk[ri] = curv.knot_vec[si];
+        ri++;
+        for (let j = 0; j < m; j++) {
+            rk[ri] = rk[ri - 1];
+            ri++;
+        }
+
+        curv.knot_vec = rk;
+        curv.control_points = rp;
 
 
+        //insert the knots
+        for (let i = 0; i < t.length; i++) {
+            curv.insert_knot(t[i], times[i]);
+        }
+        //re-integrate the curve
+        for (let i = konsts.length - 1; i >= 0; i--) {
+            curv = curv.curve_integral(konsts[i]);
+        }
 
-        throw new Error("Method not implemented.");
+        return curv;
 
         /*//const p0: T[] = 
         const krle = this.rle_knot_vec();
@@ -291,10 +338,10 @@ export class B_Spline<T extends Vector<any>> extends Vector<B_Spline<T>> impleme
         let c = tk.c;
         q[0] = c;
         for (let i = 1; i < q.length; i++) {
-            if (float_near(this.knot_vec[i + p - 1], this.knot_vec[i], B_Spline.EPSILON)) {
+            if (float_near(kn[i - 1 + p + 1], kn[i], B_Spline.EPSILON)) {
                 c = this.control_points[i - 1].vec_add(c);
             } else {
-                const d = this.knot_vec[i + p - 1] - this.knot_vec[i];
+                const d = kn[i - 1 + p + 1] - kn[i];
                 c = this.control_points[i - 1].vec_scale(d / p).vec_addEq(c);
             }
             q[i] = c;

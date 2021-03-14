@@ -142,7 +142,7 @@ function physLoop(delta: number): void {
         circ.moveTo(p.x, p.y);
         circ.beginFill(0xffff00).drawCircle(p.x, p.y, 8).endFill();
         //draw support pyramid
-        if (true) {
+        if (false) {
             const pyr = testSpline.support_net(t % 1);
             for (let i = 0; i < pyr.length; i++) {
                 const colr = 0x808080 + (0x7f7f7f & (Math.sin(i + 1) * 0xffffff));
@@ -209,9 +209,9 @@ function physLoop(delta: number): void {
 		*/
 
 
-        //draw hodograph
+        /*draw hodograph
         const der = testSpline.curve_derivative();
-        const hod = der.curve.vec_scaleEq(.01);
+        const hod = der.curve.vec_scale(.01);
 
         const pc = hod.control_points[0];
         circ.moveTo(hod.curve_eval(0).x + p.x, hod.curve_eval(0).y + p.y);
@@ -233,13 +233,57 @@ function physLoop(delta: number): void {
         circ.beginFill(0xffff00).drawCircle(pd.x + p.x, pd.y + p.y, 3).endFill();
 
         //integrate hodograph 
-        const ig = hod.curve_integral(der.trimmed_knots);
+        const ig = der.curve.curve_integral(der.trimmed_knots);
         {
             const p = ig.curve_eval(0);
             circ.moveTo(p.x, p.y);
-            circ.lineStyle(1, 0x00ff00);
+            circ.lineStyle(1.5, 0x00ff00);
             for (let t = 1 / (1 << 10); t <= 1; t += 1 / (1 << 10)) {
-                const p = ig.curve_eval(0);
+                const p = ig.curve_eval(t);
+                circ.lineTo(p.x, p.y);
+            }
+        }
+
+        //integrate test
+        const ig2 = testSpline.curve_integral({ l: 0, h: 0 });
+        {
+            const p = ig2.curve_eval(0);
+            circ.moveTo(p.x, p.y);
+            circ.lineStyle(1, 0xffff00);
+            for (let t = 1 / (1 << 10); t <= 1; t += 1 / (1 << 10)) {
+                const p = ig2.curve_eval(t);
+                circ.lineTo(p.x, p.y);
+            }
+        }
+        //rederiv test
+        const der2 = ig2.curve_derivative();
+        {
+            const p = der2.curve.curve_eval(0);
+            circ.moveTo(p.x, p.y);
+            circ.lineStyle(.5, 0xff8800);
+            for (let t = 1 / (1 << 10); t <= 1; t += 1 / (1 << 10)) {
+                const p = der2.curve.curve_eval(t);
+                circ.lineTo(p.x, p.y);
+            }
+        }// */
+        //degelv test
+        const degup = testSpline.degree_elevate(1);
+        circ.lineStyle(1, 0x4400ff);
+        const cp = degup.control_points[0]
+        circ.beginFill(0x8800ff).drawCircle(cp.x, cp.y, 4).endFill();
+        circ.moveTo(cp.x, cp.y);
+        for (let i = 1; i < degup.control_points.length; i++) {
+            const cp = degup.control_points[i];
+            circ.lineTo(cp.x, cp.y);
+            circ.beginFill(0x8800ff).drawCircle(cp.x, cp.y, 4).endFill();
+            circ.moveTo(cp.x, cp.y);
+        }
+        {
+            const p = degup.curve_eval(0);
+            circ.moveTo(p.x, p.y);
+            circ.lineStyle(.5, 0x0044ff);
+            for (let t = 1 / (1 << 10); t <= 1; t += 1 / (1 << 10)) {
+                const p = degup.curve_eval(t);
                 circ.lineTo(p.x, p.y);
             }
         }
