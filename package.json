@@ -54,7 +54,7 @@
     "jasmine-ts": "^0.3.0",
     "offscreen-canvas": "^0.1.1",
     "quaternion": "^1.1.0",
-    "three": "^0.112.1",
+    "three": "^0.137.0",
     "three.js": "^0.77.1"
   }
 }
